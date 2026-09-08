@@ -1,0 +1,5 @@
+dataset,feature,status,what_is_needed_to_upgrade_to_verified
+Hazard zones,HZ-01 waterfall boundary,SOURCE_TRACED_ESTIMATED,Field GPS survey + Forest Department confirmation
+Hazard zones,HZ-02 stream corridor,SOURCE_TRACED_ESTIMATED,Hydrological/DEM analysis + field validation + authority confirmation
+Safe zones,SZ-C01 to SZ-C03,CANDIDATE_ONLY,DEM/flood-depth assessment + access/capacity check + Forest/Railway authority confirmation
+Evacuation route,ER-C01,CANDIDATE_DERIVED,Field route survey + obstruction/slope check + Forest/Railway approval

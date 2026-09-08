@@ -1,4 +1,10 @@
-# React + Vite
+# Smart Water Safety frontend
+
+See the [project README](../README.md) for setup, features and data notes. The application uses React, Vite, MapLibre and the original four-mode structure. Production deployment settings are in `vercel.json`; API requests proxy to the existing Render backend.
+
+Run `npm run dev`, `npm run lint` and `npm run build` from this directory. `node scripts/render-check.mjs` verifies 30 page/site/scenario combinations without browser automation.
+
+## Original starter notes
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

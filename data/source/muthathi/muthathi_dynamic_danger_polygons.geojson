@@ -1,0 +1,123 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "region": "Muthathi / Sangama reach, Cauvery Wildlife Sanctuary, Kanakapura taluk, Karnataka",
+    "disclaimer": "MOCK/ILLUSTRATIVE DATA - these polygons are synthetic examples for system/UI testing, not real surveyed hazard zones. No authoritative live danger-zone feed exists publicly for this reach.",
+    "dynamic_design_note": "Each feature carries valid_from/valid_until and a trigger_condition to show how zones would activate/expire/resize in a real system - e.g. driven by upstream reservoir release data or rainfall. Regenerate this file (or PATCH individual features) whenever the trigger condition re-evaluates.",
+    "generated_at": "2026-09-07T00:00:00+05:30"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "danger-zone-001",
+      "properties": {
+        "name": "Muthathi bank strong-current zone",
+        "danger_level": "high",
+        "category": "swift_current",
+        "reason": "Simulated - elevated turbulence modeled near confluence bend",
+        "trigger_condition": "activates when combined upstream reservoir release exceeds 10,000 cusecs (mock threshold)",
+        "status": "active",
+        "valid_from": "2026-09-07T06:00:00+05:30",
+        "valid_until": "2026-09-07T18:00:00+05:30",
+        "confidence": "mock",
+        "advisory": "Simulated advisory: no wading or boating within this zone during active window."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [77.30870, 12.30640],
+            [77.31090, 12.30640],
+            [77.31090, 12.30800],
+            [77.30870, 12.30800],
+            [77.30870, 12.30640]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "danger-zone-002",
+      "properties": {
+        "name": "Sangama confluence eddy zone",
+        "danger_level": "medium",
+        "category": "eddy_undertow",
+        "reason": "Simulated - eddies typical near tributary confluence, modeled illustratively",
+        "trigger_condition": "activates during and 6 hours after any recorded rainfall event in Arkavathy catchment (mock threshold)",
+        "status": "active",
+        "valid_from": "2026-09-07T06:00:00+05:30",
+        "valid_until": "2026-09-07T12:00:00+05:30",
+        "confidence": "mock",
+        "advisory": "Simulated advisory: exercise caution, currents may reverse unpredictably."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [77.26180, 12.31180],
+            [77.26480, 12.31180],
+            [77.26480, 12.31420],
+            [77.26180, 12.31420],
+            [77.26180, 12.31180]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "danger-zone-003",
+      "properties": {
+        "name": "Rocky rapids stretch near temple bend",
+        "danger_level": "high",
+        "category": "submerged_rocks",
+        "reason": "Simulated - shallow rocky bed illustratively marked near temple placemark cluster",
+        "trigger_condition": "static hazard - always active regardless of flow (mock)",
+        "status": "active",
+        "valid_from": "2026-09-01T00:00:00+05:30",
+        "valid_until": null,
+        "confidence": "mock",
+        "advisory": "Simulated advisory: no swimming, boating only with local guide."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [77.27760, 12.30980],
+            [77.27960, 12.30980],
+            [77.27960, 12.31150],
+            [77.27760, 12.31150],
+            [77.27760, 12.30980]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "danger-zone-004",
+      "properties": {
+        "name": "Downstream release surge buffer",
+        "danger_level": "medium",
+        "category": "sudden_release_surge",
+        "reason": "Simulated buffer zone illustrating impact of sudden upstream dam gate opening",
+        "trigger_condition": "activates within 2-36 hours (mock travel-time window) after KRS/Kabini outflow exceeds 15,000 cusecs combined",
+        "status": "inactive",
+        "valid_from": null,
+        "valid_until": null,
+        "confidence": "mock",
+        "advisory": "Simulated advisory: this zone would auto-activate on qualifying release event; currently dormant."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [77.29500, 12.29900],
+            [77.30300, 12.29900],
+            [77.30300, 12.30350],
+            [77.29500, 12.30350],
+            [77.29500, 12.29900]
+          ]
+        ]
+      }
+    }
+  ]
+}

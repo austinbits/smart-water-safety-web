@@ -4,10 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-  "start": "node src/server.js",
-  "dev": "nodemon src/server.js",
-  "test": "echo \"Error: no test specified\" && exit 1"
-},
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+  "test": "node --test test/*.test.mjs",
+  "migrate": "node scripts/migrate.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -17,6 +18,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "pg": "^8.23.0",
+    "socket.io": "^4.8.3",
     "uuid": "^14.0.2"
   },
   "devDependencies": {

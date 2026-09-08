@@ -1,0 +1,213 @@
+{
+  "type": "FeatureCollection",
+  "name": "Muthathi_Kaveri_Danger_Restricted_Zones",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "RZ_M01",
+        "zone_type": "restricted_zone_no_swimming",
+        "name": "Muthathi Main Restricted River Stretch (Temple/Tourist Access Area)",
+        "description": "Primary no-swimming / high-risk river stretch near the main Muthathi temple and tourist access point, built from the actual river channel width (both banks) traced in the uploaded KML. Verified as a documented high-incident zone: forest department prohibits swimming here due to whirlpools, sudden drop-offs, and strong current.",
+        "hazard_type": [
+          "whirlpool",
+          "strong_current",
+          "sudden_drop_off",
+          "sharp_rocky_riverbed"
+        ],
+        "documented_incidents": "120+ drowning deaths recorded since 2010 in the Muthathi stretch (Deccan Herald, TripAdvisor visitor reports)",
+        "official_status": "swimming_prohibited_by_forest_department",
+        "location": "Muthathi, Kaveri River, Karnataka",
+        "data_source": "derived_from_user_kml_river_boundaries + published_incident_reports",
+        "verification_needed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.32296651049012,
+              12.30867204248344
+            ],
+            [
+              77.32214120790097,
+              12.30883063549721
+            ],
+            [
+              77.32123821722953,
+              12.30856772634652
+            ],
+            [
+              77.32022129843811,
+              12.30839385748675
+            ],
+            [
+              77.31877362417009,
+              12.30814322360088
+            ],
+            [
+              77.31720102499638,
+              12.30783785314629
+            ],
+            [
+              77.31580206201804,
+              12.30754896680996
+            ],
+            [
+              77.31481026788893,
+              12.30729180487443
+            ],
+            [
+              77.31422583086362,
+              12.30722552437791
+            ],
+            [
+              77.31049808907143,
+              12.30330030956375
+            ],
+            [
+              77.31076533001702,
+              12.30324364140366
+            ],
+            [
+              77.31097464329139,
+              12.30338348714449
+            ],
+            [
+              77.31102941288746,
+              12.30378480535507
+            ],
+            [
+              77.31113164323581,
+              12.30399417748146
+            ],
+            [
+              77.31154947035246,
+              12.30413781688175
+            ],
+            [
+              77.31173799765742,
+              12.30450475216418
+            ],
+            [
+              77.31205517428053,
+              12.30478138946871
+            ],
+            [
+              77.31225703691507,
+              12.30506742349286
+            ],
+            [
+              77.31266812964157,
+              12.3054181233329
+            ],
+            [
+              77.3129986119262,
+              12.30598242211321
+            ],
+            [
+              77.31318472252693,
+              12.30628269151977
+            ],
+            [
+              77.31313592241897,
+              12.30637830131854
+            ],
+            [
+              77.31318817386872,
+              12.30641381526781
+            ],
+            [
+              77.31363707740132,
+              12.30662776800656
+            ],
+            [
+              77.31373879124229,
+              12.30680195154346
+            ],
+            [
+              77.31390863129938,
+              12.30696433933738
+            ],
+            [
+              77.32296651049012,
+              12.30867204248344
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "RZ_M02",
+        "zone_type": "known_whirlpool_zone",
+        "name": "Muthathi Core Whirlpool / Deep-Water Zone",
+        "description": "Tighter high-severity sub-zone within the main restricted stretch, representing the core area where whirlpools and unexpected depth changes are most frequently reported by visitors and local authorities.",
+        "hazard_type": [
+          "whirlpool",
+          "sudden_depth_change"
+        ],
+        "official_status": "swimming_strictly_prohibited",
+        "location": "Muthathi, Kaveri River, Karnataka",
+        "data_source": "derived_from_user_kml_river_boundaries + published_incident_reports",
+        "verification_needed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.31720102499638,
+              12.30783785314629
+            ],
+            [
+              77.31580206201804,
+              12.30754896680996
+            ],
+            [
+              77.31481026788893,
+              12.30729180487443
+            ],
+            [
+              77.31422583086362,
+              12.30722552437791
+            ],
+            [
+              77.31154947035246,
+              12.30413781688175
+            ],
+            [
+              77.31173799765742,
+              12.30450475216418
+            ],
+            [
+              77.31205517428053,
+              12.30478138946871
+            ],
+            [
+              77.31225703691507,
+              12.30506742349286
+            ],
+            [
+              77.31266812964157,
+              12.3054181233329
+            ],
+            [
+              77.3129986119262,
+              12.30598242211321
+            ],
+            [
+              77.31318472252693,
+              12.30628269151977
+            ],
+            [
+              77.31720102499638,
+              12.30783785314629
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

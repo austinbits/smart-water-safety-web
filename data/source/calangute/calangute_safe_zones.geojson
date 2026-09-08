@@ -1,0 +1,36 @@
+{
+  "type": "FeatureCollection",
+  "name": "Calangute_Beach_Safe_Zones",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "SZ01",
+        "name": "Calangute North Safe Zone",
+        "description": "Approximate lifeguard-monitored swim zone near the main Calangute beach entrance / Beach Road junction. Marked in reality by red-and-yellow flags roughly 100m apart.",
+        "location": "Calangute Beach",
+        "data_source": "approximate_estimate",
+        "verification_needed": true
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [73.7605, 15.5468]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "SZ02",
+        "name": "Calangute South Safe Zone",
+        "description": "Approximate lifeguard-monitored swim zone toward the southern stretch of Calangute beach, closer to the Candolim border. Marked in reality by red-and-yellow flags roughly 100m apart.",
+        "location": "Calangute Beach",
+        "data_source": "approximate_estimate",
+        "verification_needed": true
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [73.7588, 15.5390]
+      }
+    }
+  ]
+}

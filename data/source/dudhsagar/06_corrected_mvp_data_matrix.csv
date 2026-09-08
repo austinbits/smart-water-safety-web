@@ -1,0 +1,12 @@
+Data Item,Correct Classification,Included File,Decision / Note
+Waterfall location & nearby stream geometry,REAL - KML source,01_kml_source_features.geojson,Keep; source geometry.
+Plunge-pool boundary,NOT VERIFIED,03_kml_features_needing_verification.geojson,KML has an estimated boundary; do not call it surveyed/official.
+Tourist viewing & access areas,PARTIAL REAL,01_kml_source_features.geojson,Only mapped KML points/features; no invented viewing polygons.
+"Main trails, steps, bridges, exits",PARTIAL REAL,01_kml_source_features.geojson,P1/P2 and bridge are KML-derived; steps/exits not established.
+Elevation & terrain slope,PARTIAL REAL,01_kml_source_features.geojson,KML has point elevations; no terrain/slope grid.
+Known high-flow/slippery/deep-water/restricted zones,NOT AVAILABLE AS VERIFIED DATA,,Do not include as real; needs official/field validation.
+Rainfall & weather data,REAL OFFICIAL SOURCE,04_official_source_records.json,Use IMD/NWIC observed rainfall or Goa hourly telemetry; no fabricated values included.
+1-2 high-ground safe zones,NOT VERIFIED,,Do not include as real; needs field/authority validation.
+Nearest forest dept./police/hospital/rescue,PARTIAL REAL,04_official_source_records.json,Official police/forest contacts included; no unverified hospital claim.
+5-10 historical incidents,PARTIAL REAL,05_verified_historical_incidents.json,Only incidents directly supported by the official assembly document are included.
+One evacuation route,NOT VERIFIED,,P1/P2 are not treated as validated emergency routes.

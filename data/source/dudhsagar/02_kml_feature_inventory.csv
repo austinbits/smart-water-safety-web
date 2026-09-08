@@ -1,0 +1,16 @@
+feature_name,geometry_type,source,status,verification_required,notes
+Stream Corridor / Catchment Area (existing trace),Polygon,User-provided KML,KML-derived estimated/trace feature,YES,Included because it exists in the supplied KML; not treated as surveyed/official boundary.
+Dudhsagar Falls Railway Bridge,Point,User-provided KML,KML-derived,NO,
+Dudhsagar River,Point,User-provided KML,KML-derived,NO,
+South Western Railway Officers Inspection Cottage,Point,User-provided KML,KML-derived,NO,
+Sree Chimpeswary Temple,Point,User-provided KML,KML-derived,NO,
+Cave dhudhsagar,Point,User-provided KML,KML-derived,NO,
+Dudhsagar railway station,Point,User-provided KML,KML-derived,NO,
+Dudhsagar Railway Track,LineString,User-provided KML,KML-derived,NO,KML-derived railway track trace; included as geographic reference only.
+Dudhsagar Parking,Point,User-provided KML,KML-derived,NO,
+P1,LineString,User-provided KML,KML-derived,YES,KML trail trace; not an officially validated emergency evacuation route.
+Dudhsagara Waterfall Camp Site,Point,User-provided KML,KML-derived,NO,
+waterfall boundary,Polygon,User-provided KML,KML-derived estimated/trace feature,YES,Included because it exists in the supplied KML; not treated as surveyed/official boundary.
+Main Falls Area,Point,User-provided KML,KML-derived,NO,
+Dudhsagar Watchtower,Point,User-provided KML,KML-derived,NO,
+P2,LineString,User-provided KML,KML-derived,YES,KML trail trace; not an officially validated emergency evacuation route.

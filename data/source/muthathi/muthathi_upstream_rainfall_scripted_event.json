@@ -1,0 +1,56 @@
+{
+  "event_id": "MUTHATHI-RAIN-TRIGGER-001",
+  "site_id": "MUTHATHI-RIVER",
+  "study_polygon": "Polygon 7",
+  "data_type": "upstream_rainfall_increase",
+  "data_class": "synthetic",
+  "mvp_purpose": "lead_time_trigger",
+  "format": "scripted_event",
+  "description": "Synthetic upstream rainfall increase used to trigger the Muthathi River risk pipeline before local river conditions rise.",
+  "script": [
+    {
+      "timestamp": "2026-09-07T15:40:00+05:30",
+      "station_id": "SYN-UPSTREAM-01",
+      "rainfall_mm": 2.0,
+      "rainfall_rate_mm_per_10min": 2.0,
+      "trigger_status": "NORMAL"
+    },
+    {
+      "timestamp": "2026-09-07T15:50:00+05:30",
+      "station_id": "SYN-UPSTREAM-01",
+      "rainfall_mm": 12.0,
+      "rainfall_rate_mm_per_10min": 10.0,
+      "trigger_status": "WATCH"
+    },
+    {
+      "timestamp": "2026-09-07T16:00:00+05:30",
+      "station_id": "SYN-UPSTREAM-01",
+      "rainfall_mm": 25.0,
+      "rainfall_rate_mm_per_10min": 13.0,
+      "trigger_status": "LEAD_TIME_TRIGGER"
+    },
+    {
+      "timestamp": "2026-09-07T16:10:00+05:30",
+      "station_id": "SYN-UPSTREAM-01",
+      "rainfall_mm": 38.0,
+      "rainfall_rate_mm_per_10min": 13.0,
+      "trigger_status": "ESCALATE"
+    },
+    {
+      "timestamp": "2026-09-07T16:20:00+05:30",
+      "station_id": "SYN-UPSTREAM-01",
+      "rainfall_mm": 48.0,
+      "rainfall_rate_mm_per_10min": 10.0,
+      "trigger_status": "HIGH_RAINFALL"
+    }
+  ],
+  "kml_reference": {
+    "polygon_name": "Polygon 7",
+    "bounds": {
+      "min_lat": 12.2901684,
+      "max_lat": 12.3191477,
+      "min_lng": 77.2611066,
+      "max_lng": 77.3290879
+    }
+  }
+}

@@ -1,40 +1,36 @@
-require('dotenv').config();
-const { Pool } = require('pg');
-
-const databaseUrl = process.env.DATABASE_URL;
-
-if (!databaseUrl) {
-  throw new Error('DATABASE_URL is not defined in the environment variables.');
+const { Pool } = require("pg");
+const fs = require("node:fs");
+const path = require("node:path");
+const { rootCertificates } = require("node:tls");
+function createPool() {
+  if (!process.env.DATABASE_URL) return null;
+  const remote =
+    /supabase\.(co|com)/.test(process.env.DATABASE_URL) ||
+    process.env.NODE_ENV === "production";
+  const caFile =
+    process.env.DB_SSL_CA_FILE ||
+    path.resolve(__dirname, "../../certs/prod-ca-2021.crt");
+  const ssl =
+    process.env.DB_SSL === "disable"
+      ? false
+      : remote
+        ? {
+            rejectUnauthorized: true,
+            ca: [...rootCertificates, fs.readFileSync(caFile, "utf8")],
+          }
+        : false;
+  const connection = new URL(process.env.DATABASE_URL);
+  // pg URL SSL parameters override the explicit TLS object; keep one source of truth.
+  for (const key of ["sslmode", "sslcert", "sslkey", "sslrootcert"])
+    connection.searchParams.delete(key);
+  const pool = new Pool({
+    connectionString: connection.toString(),
+    ssl,
+    max: Number(process.env.DB_POOL_MAX) || 5,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+  });
+  pool.on("error", () => console.error("Database connection interrupted."));
+  return pool;
 }
-
-const pool = new Pool({
-  connectionString: databaseUrl,
-  ssl: process.env.NODE_ENV === 'production'
-    ? { rejectUnauthorized: false }
-    : false,
-  max: Number(process.env.DB_POOL_MAX) || 10,
-  idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT) || 30000,
-  connectionTimeoutMillis: Number(process.env.DB_CONNECTION_TIMEOUT) || 10000,
-});
-
-pool.on('connect', () => {
-  console.log('PostgreSQL database connection established.');
-});
-
-pool.on('error', (err) => {
-  console.error('Unexpected PostgreSQL pool error:', err);
-});
-
-// Test connection on startup
-(async () => {
-  try {
-    const client = await pool.connect();
-    await client.query('SELECT 1');
-    console.log('PostgreSQL database connection successful.');
-    client.release();
-  } catch (error) {
-    console.error('PostgreSQL database connection failed:', error.message);
-  }
-})();
-
-module.exports = pool;
+module.exports = { createPool };

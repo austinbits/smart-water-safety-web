@@ -1,0 +1,4 @@
+id,name,latitude,longitude,elevation_m,basis,status,verification_status,critical_issue
+SZ-C01,Dudhsagar Railway Station candidate,15.31634021938565,74.30653724383428,282.98,Highest mapped named point among the KML access-related points,CANDIDATE_ONLY,NOT_VERIFIED_AS_SAFE_ZONE,Inside/near the mapped stream-corridor footprint; railway operational constraints must be checked
+SZ-C02,Sree Chimpeswary Temple candidate,15.31187928158909,74.31102056216007,279.81,High mapped elevation,CANDIDATE_ONLY,NOT_VERIFIED_AS_SAFE_ZONE,Located within the mapped broad corridor; site access/capacity/flood exposure require field verification
+SZ-C03,Cave Dudhsagar candidate,15.31269032716735,74.30882706311056,280.33,High mapped elevation,CANDIDATE_ONLY,NOT_VERIFIED_AS_SAFE_ZONE,"A cave should not be treated as an emergency refuge without structural, flood and access assessment"

@@ -1,0 +1,102 @@
+{
+  "type": "FeatureCollection",
+  "name": "Calangute_Beach_Swimming_and_Restricted_Zones",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "SW01",
+        "zone_type": "swimming_zone",
+        "name": "Calangute North Swimming Zone",
+        "description": "Approximate lifeguard-supervised designated swim area, marked in reality by red-and-yellow flags, near the northern stretch of the beach.",
+        "location": "Calangute Beach",
+        "data_source": "approximate_estimate",
+        "verification_needed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.7601, 15.5463],
+            [73.7601, 15.5473],
+            [73.7580, 15.5473],
+            [73.7580, 15.5463],
+            [73.7601, 15.5463]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "SW02",
+        "zone_type": "swimming_zone",
+        "name": "Calangute South Swimming Zone",
+        "description": "Approximate lifeguard-supervised designated swim area, marked in reality by red-and-yellow flags, near the southern stretch of the beach.",
+        "location": "Calangute Beach",
+        "data_source": "approximate_estimate",
+        "verification_needed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.7584, 15.5385],
+            [73.7584, 15.5395],
+            [73.7563, 15.5395],
+            [73.7563, 15.5385],
+            [73.7584, 15.5385]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "RZ01",
+        "zone_type": "restricted_zone",
+        "name": "Calangute North-Central Restricted Zone (Water Sports Channel)",
+        "description": "Approximate no-swim zone around the water sports boat channel (jet skis, parasailing, banana boats), marked in reality by black-and-white flags. Fast boat traffic makes this stretch dangerous for swimmers.",
+        "location": "Calangute Beach",
+        "data_source": "approximate_estimate",
+        "verification_needed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.7603, 15.5445],
+            [73.7603, 15.5455],
+            [73.7575, 15.5455],
+            [73.7575, 15.5445],
+            [73.7603, 15.5445]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "RZ02",
+        "zone_type": "restricted_zone",
+        "name": "Calangute South-Central Restricted Zone (Water Sports Channel)",
+        "description": "Approximate no-swim zone around a second water sports boat channel, marked in reality by black-and-white flags. Fast boat traffic makes this stretch dangerous for swimmers.",
+        "location": "Calangute Beach",
+        "data_source": "approximate_estimate",
+        "verification_needed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.7597, 15.5405],
+            [73.7597, 15.5415],
+            [73.7572, 15.5415],
+            [73.7572, 15.5405],
+            [73.7597, 15.5405]
+          ]
+        ]
+      }
+    }
+  ]
+}

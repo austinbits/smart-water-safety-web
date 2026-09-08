@@ -1,0 +1,137 @@
+{
+  "type": "FeatureCollection",
+  "name": "Calangute_Beach_Danger_Zones",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "DZ01",
+        "zone_type": "dynamic_rip_current_danger_zone",
+        "name": "Calangute North Danger Zone (Sep 5 spike)",
+        "description": "ML-predicted rip current danger zone, activated when wave height and current speed cross threshold values.",
+        "trigger_reason": "wave_height_m > 1.5 AND current_speed_mps > 0.4",
+        "linked_wave_height_m": 1.88,
+        "linked_current_speed_mps": 0.69,
+        "active_from": "2026-09-05T17:00:00+05:30",
+        "active_until": "2026-09-05T19:00:00+05:30",
+        "confidence_score": 0.87,
+        "location": "Calangute Beach",
+        "data_source": "computed_from_wave_and_current_datasets",
+        "verification_needed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              73.7599,
+              15.546
+            ],
+            [
+              73.7599,
+              15.547
+            ],
+            [
+              73.7578,
+              15.547
+            ],
+            [
+              73.7578,
+              15.546
+            ],
+            [
+              73.7599,
+              15.546
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "DZ02",
+        "zone_type": "dynamic_rip_current_danger_zone",
+        "name": "Calangute South Danger Zone (Sep 12 spike)",
+        "description": "ML-predicted rip current danger zone, activated when wave height and current speed cross threshold values.",
+        "trigger_reason": "wave_height_m > 1.5 AND current_speed_mps > 0.4",
+        "linked_wave_height_m": 1.98,
+        "linked_current_speed_mps": 0.74,
+        "active_from": "2026-09-12T06:00:00+05:30",
+        "active_until": "2026-09-12T08:00:00+05:30",
+        "confidence_score": 0.91,
+        "location": "Calangute Beach",
+        "data_source": "computed_from_wave_and_current_datasets",
+        "verification_needed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              73.759,
+              15.5382
+            ],
+            [
+              73.759,
+              15.5392
+            ],
+            [
+              73.7568,
+              15.5392
+            ],
+            [
+              73.7568,
+              15.5382
+            ],
+            [
+              73.759,
+              15.5382
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "DZ03",
+        "zone_type": "static_historical_rip_current_zone",
+        "name": "Calangute Central Known Rip-Current-Prone Stretch",
+        "description": "Historically rip-current-prone stretch based on published coastal research for the Sinquerim-Candolim-Calangute-Baga coastal belt. Not tied to a specific timestamp; represents baseline elevated risk used to weight ML predictions.",
+        "trigger_reason": "historical_pattern_baseline",
+        "confidence_score": 0.6,
+        "location": "Calangute Beach",
+        "data_source": "approximate_estimate_from_published_research",
+        "verification_needed": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              73.7605,
+              15.544
+            ],
+            [
+              73.7605,
+              15.545
+            ],
+            [
+              73.758,
+              15.545
+            ],
+            [
+              73.758,
+              15.544
+            ],
+            [
+              73.7605,
+              15.544
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

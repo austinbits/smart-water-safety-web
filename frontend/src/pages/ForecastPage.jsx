@@ -1,453 +1,502 @@
-import { useEffect, useState } from 'react';
-
-const API_URL = import.meta.env.VITE_API_URL;
-
-const GAUGES = [
-  {
-    key: 'rainfall',
-    label: 'Rainfall',
-    unit: 'mm',
-    max: 150,
-  },
-  {
-    key: 'water_level',
-    label: 'Water Level',
-    unit: 'm',
-    max: 10,
-  },
-  {
-    key: 'flow_speed',
-    label: 'Flow Speed',
-    unit: 'm/s',
-    max: 5,
-  },
-  {
-    key: 'wind',
-    label: 'Wind',
-    unit: 'km/h',
-    max: 50,
-  },
-];
-
-const STATUS_STYLES = {
-  safe: 'bg-green-500 text-white',
-  caution: 'bg-yellow-500 text-black',
-  avoid: 'bg-red-600 text-white',
+import { useEffect, useMemo, useState, useRef } from "react";
+import { Link } from "react-router-dom";
+import {
+  CloudRain,
+  Wind,
+  Waves,
+  Gauge,
+  ArrowUpRight,
+  Info,
+  RefreshCw,
+  Thermometer,
+  ShieldAlert,
+  Clock,
+  ExternalLink,
+  Droplets,
+} from "lucide-react";
+import { useWater } from "../store/water-context";
+import {
+  SiteSwitcher,
+  PageHeading,
+  Footer,
+  Chart,
+  Modal,
+  Badge,
+  ScenarioControl,
+} from "../components/Shared";
+import { api, downloadJSON } from "../services/api";
+import { riskFor, RULES } from "../../../shared/engine.mjs";
+const formatTime = (t) =>
+  t
+    ? new Date(t).toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "Unavailable";
+const metricDefinitions = {
+  wave_height: { label: "Significant wave height", unit: "m", icon: Waves },
+  water_level: { label: "Water level", unit: "m", icon: Droplets },
+  flow_speed: { label: "Surface current", unit: "m/s", icon: Gauge },
+  rainfall: { label: "Hourly rainfall", unit: "mm", icon: CloudRain },
+  wind: { label: "Wind speed", unit: "km/h", icon: Wind },
+  temperature: { label: "Air temperature", unit: "°C", icon: Thermometer },
 };
-
-const STATUS_LABELS = {
-  safe: 'SAFE',
-  caution: 'CAUTION',
-  avoid: 'AVOID',
-};
-
-function ForecastPage() {
-  const [sites, setSites] = useState([]);
-  const [forecasts, setForecasts] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [spiking, setSpiking] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    fetchForecastData();
-  }, []);
-
-  const fetchForecastData = async () => {
+export default function ForecastPage() {
+  const { site, siteId, frame, scenario, notify } = useWater();
+  const [source, setSource] = useState("demo"),
+    [model, setModel] = useState(null),
+    [loading, setLoading] = useState(false),
+    [error, setError] = useState(""),
+    [horizon, setHorizon] = useState(0),
+    [expanded, setExpanded] = useState(null);
+  const requestRef = useRef(null);
+  useEffect(() => () => requestRef.current?.abort(), []);
+  async function loadModel() {
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setLoading(true);
+    setError("");
     try {
-      setLoading(true);
-      setError('');
-
-      if (!API_URL) {
-        throw new Error('VITE_API_URL is not configured.');
-      }
-
-      const sitesResponse = await fetch(`${API_URL}/api/sites`);
-
-      if (!sitesResponse.ok) {
-        throw new Error('Failed to fetch water sites.');
-      }
-
-      const sitesData = await sitesResponse.json();
-
-      if (!Array.isArray(sitesData) || sitesData.length === 0) {
-        throw new Error('No water safety sites were found.');
-      }
-
-      const forecastResults = await Promise.all(
-        sitesData.map(async (site) => {
-          const response = await fetch(
-            `${API_URL}/api/sites/${site.site_id}/forecasts`
-          );
-
-          if (!response.ok) {
-            throw new Error(
-              `Failed to fetch forecast for ${site.name}.`
-            );
-          }
-
-          const data = await response.json();
-
-          return {
-            siteId: site.site_id,
-            forecast: Array.isArray(data) ? data : [],
-          };
-        })
-      );
-
-      const forecastMap = {};
-
-      forecastResults.forEach((item) => {
-        forecastMap[item.siteId] = item.forecast;
+      const d = await api(`/weather/${siteId}`, {
+        signal: AbortSignal.any([
+          controller.signal,
+          AbortSignal.timeout(15000),
+        ]),
       });
-
-      setSites(sitesData);
-      setForecasts(forecastMap);
-    } catch (err) {
-      console.error('Forecast data error:', err);
-      setError(err.message || 'Failed to load forecast data.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSimulateSpike = async () => {
-    try {
-      setSpiking(true);
-      setError('');
-
-      if (!API_URL) {
-        throw new Error('VITE_API_URL is not configured.');
+      if (!controller.signal.aborted) {
+        setModel(d);
+        setSource("model");
       }
-
-      const response = await fetch(`${API_URL}/api/simulate-spike`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          site_id: 1,
-        }),
-      });
-
-      if (!response.ok) {
-        let message = 'Failed to simulate weather spike.';
-
-        try {
-          const errorData = await response.json();
-
-          if (errorData?.error) {
-            message = errorData.error;
-          }
-        } catch {
-          // Keep the default error message.
-        }
-
-        throw new Error(message);
-      }
-
-      await response.json();
-
-      // The spike endpoint updates danger zones, while the forecast
-      // endpoint provides the status displayed by this page.
-      await fetchForecastData();
-    } catch (err) {
-      console.error('Weather spike error:', err);
-      setError(err.message || 'Failed to simulate weather spike.');
+    } catch (e) {
+      if (!controller.signal.aborted) setError(e.message);
     } finally {
-      setSpiking(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100">
-        <div className="rounded-lg bg-white px-8 py-6 shadow">
-          <p className="text-xl font-semibold text-gray-700">
-            Loading...
-          </p>
-        </div>
-      </div>
-    );
   }
-
+  const modelRows = useMemo(() => {
+    if (!model?.weather.hourly) return [];
+    const h = model.weather.hourly,
+      m = model.marine?.hourly,
+      u = model.marine?.hourly_units?.ocean_current_velocity;
+    const toMs = (v) =>
+      v == null ? null : u === "km/h" ? v / 3.6 : u === "m/s" ? v : null;
+    return h.time.map((t, i) => {
+      const j = m?.time.indexOf(t) ?? -1;
+      return {
+        timestamp: t + "+05:30",
+        temperature: h.temperature_2m[i],
+        rainfall: h.precipitation[i],
+        wind: h.wind_speed_10m[i],
+        wind_direction: h.wind_direction_10m?.[i],
+        rain_probability: h.precipitation_probability?.[i],
+        wave_height: j >= 0 ? m.wave_height[j] : null,
+        flow_speed: j >= 0 ? toMs(m.ocean_current_velocity?.[j]) : null,
+        water_level: null,
+        sea_level_msl: j >= 0 ? m.sea_level_height_msl?.[j] : null,
+      };
+    });
+  }, [model]);
+  const isModel = source === "model" && model;
+  const rows = isModel ? modelRows : site.timeline;
+  const baseline =
+    Math.max(
+      0,
+      rows.findIndex((r) =>
+        isModel
+          ? Date.parse(r.timestamp) >= Date.parse(model.retrieved_at) - 3600000
+          : r.timestamp.startsWith("2026-09-07T12"),
+      ),
+    ) + (isModel ? 0 : Math.floor(frame / 3));
+  const index = Math.min(rows.length - 1, baseline + horizon),
+    sample = rows[index] || {};
+  const currentRisk = isModel ? null : riskFor(site, sample, scenario);
+  const metrics = isModel ? sample : currentRisk.metrics;
+  const keys =
+    site.type === "beach"
+      ? ["wave_height", "flow_speed", "wind", "rainfall"]
+      : ["water_level", "rainfall", "wind", "temperature"];
+  const history = rows.slice(
+    Math.max(0, index - 12),
+    Math.min(rows.length, index + 13),
+  );
+  const title = isModel
+    ? "A clearer view of the conditions."
+    : currentRisk.status === "avoid"
+      ? "Conditions call for extra caution."
+      : currentRisk.status === "caution"
+        ? "Watch the water. Plan ahead."
+        : "Know what’s happening at the water.";
+  const tideDay =
+    site.tides?.days.find(
+      (d) => d.date === (sample.timestamp || "").slice(0, 10),
+    ) || site.tides?.days[0];
   return (
-    <div className="min-h-screen bg-gray-100 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-6 flex flex-col gap-4 rounded-xl bg-white p-5 shadow sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Water Safety Forecast
-            </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Current environmental conditions across monitored sites.
-            </p>
-          </div>
-
+    <div className="page forecast-page">
+      <PageHeading
+        eyebrow="FORECAST & EARLY AWARENESS"
+        title="Read the conditions. Plan your visit."
+        description="Site-specific signals, their sources, and what’s changing."
+      >
+        <button
+          className="button secondary"
+          onClick={loadModel}
+          aria-label="Refresh weather model"
+          disabled={loading}
+        >
+          <RefreshCw size={16} className={loading ? "spinning" : ""} />
+          <span>{loading ? "Fetching model…" : "Refresh weather model"}</span>
+        </button>
+      </PageHeading>
+      <SiteSwitcher />
+      <div className="forecast-toolbar">
+        <div className="segmented">
           <button
-            type="button"
-            onClick={handleSimulateSpike}
-            disabled={spiking}
-            className={`rounded-lg px-5 py-3 text-sm font-bold text-white shadow transition ${
-              spiking
-                ? 'cursor-not-allowed bg-gray-400'
-                : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
-            }`}
+            className={source === "demo" ? "active" : ""}
+            onClick={() => setSource("demo")}
           >
-            {spiking
-              ? 'Simulating...'
-              : 'Simulate Weather Spike'}
+            Dataset replay
+          </button>
+          <button
+            className={source === "model" ? "active" : ""}
+            onClick={() => (model ? setSource("model") : loadModel())}
+            disabled={loading}
+          >
+            Current weather model
           </button>
         </div>
-
-        {/* Error */}
-        {error && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-            <p className="font-semibold">Error</p>
-            <p className="text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* Site Cards */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {sites.map((site) => {
-            const siteForecasts = forecasts[site.site_id] || [];
-            const latestForecast = siteForecasts[0];
-
-            return (
-              <ForecastCard
-                key={site.site_id}
-                site={site}
-                forecast={latestForecast}
-              />
-            );
-          })}
+        <div className="horizon-tabs">
+          {[
+            [0, "Now"],
+            [3, "Next 3 hours"],
+            [24, "Next 24 hours"],
+          ].map(([h, l]) => (
+            <button
+              className={horizon === h ? "active" : ""}
+              aria-pressed={horizon === h}
+              key={h}
+              onClick={() => setHorizon(h)}
+            >
+              {l}
+            </button>
+          ))}
         </div>
-
-        {sites.length === 0 && (
-          <div className="rounded-xl bg-white p-10 text-center shadow">
-            <p className="text-lg font-semibold text-gray-700">
-              No sites available.
-            </p>
-          </div>
-        )}
       </div>
-    </div>
-  );
-}
-
-function ForecastCard({ site, forecast }) {
-  const status = normalizeStatus(forecast?.status);
-
-  return (
-    <article className="rounded-xl bg-white p-5 shadow-md transition-shadow hover:shadow-lg">
-      {/* Card Header */}
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h2 className="text-xl font-bold text-gray-900">
-            {site.name}
-          </h2>
-
-          <p className="mt-1 text-sm capitalize text-gray-500">
-            {site.type}
-          </p>
-        </div>
-
-        <StatusBadge status={status} />
-      </div>
-
-      {/* Forecast content */}
-      {forecast ? (
-        <>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            {GAUGES.map((gauge) => (
-              <Gauge
-                key={gauge.key}
-                label={gauge.label}
-                value={forecast[gauge.key]}
-                max={gauge.max}
-                unit={gauge.unit}
-              />
-            ))}
-          </div>
-
-          {/* Last Updated */}
-          <div className="mt-6 border-t border-gray-100 pt-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-gray-500">
-                Last updated
-              </span>
-
-              <span
-                className="text-right text-sm font-semibold text-gray-700"
-                title={formatExactTime(forecast.timestamp)}
-              >
-                {formatRelativeTime(forecast.timestamp)}
-              </span>
-            </div>
-          </div>
-        </>
-      ) : (
-        <div className="rounded-lg bg-gray-50 p-6 text-center">
-          <p className="font-semibold text-gray-600">
-            No forecast data available.
-          </p>
-          <p className="mt-1 text-sm text-gray-400">
-            Forecast information will appear here when available.
-          </p>
+      {error && (
+        <div className="inline-notice">
+          <Info size={18} />
+          {error}
         </div>
       )}
-    </article>
-  );
-}
-
-function StatusBadge({ status }) {
-  const statusClass =
-    STATUS_STYLES[status] || 'bg-gray-500 text-white';
-
-  const label =
-    STATUS_LABELS[status] || 'UNKNOWN';
-
-  return (
-    <span
-      className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-bold tracking-wide ${statusClass}`}
-    >
-      {label}
-    </span>
-  );
-}
-
-function Gauge({ label, value, max, unit }) {
-  const numericValue = Number(value) || 0;
-
-  const percentage = Math.min(
-    Math.max((numericValue / max) * 100, 0),
-    100
-  );
-
-  return (
-    <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-gray-600">
-          {label}
-        </span>
-
-        <span className="text-xs text-gray-400">
-          Max {max} {unit}
-        </span>
-      </div>
-
-      {/* Gauge bar */}
-      <div
-        className="h-4 w-full overflow-hidden rounded-full bg-gray-200"
-        role="progressbar"
-        aria-label={`${label} level`}
-        aria-valuemin="0"
-        aria-valuemax={max}
-        aria-valuenow={numericValue}
+      <section
+        className={`forecast-hero ${isModel ? "model" : currentRisk.status}`}
       >
-        <div
-          className="h-full rounded-full bg-blue-600 transition-all duration-700 ease-out"
-          style={{
-            width: `${percentage}%`,
+        <div className="hero-copy">
+          <div className="row">
+            <Badge value={isModel ? "unknown" : currentRisk.status}>
+              {isModel ? "NUMERICAL WEATHER MODEL" : undefined}
+            </Badge>
+            <span className="hero-metadata">
+              {isModel ? "Retrieved" : "Source replay"}{" "}
+              {formatTime(isModel ? model.retrieved_at : sample.timestamp)} IST
+            </span>
+          </div>
+          <h2>{title}</h2>
+          <p>
+            {isModel
+              ? "Forecast model output provides environmental context. Local water safety is unassessed."
+              : currentRisk.status === "avoid"
+                ? "One or more demonstration thresholds are exceeded. Open emergency mode to rehearse the response."
+                : "Explore the contributing signals below. Low modeled risk does not certify a location as safe."}
+          </p>
+          <Link to={isModel ? "/data" : "/emergency"} className="text-link">
+            {isModel ? "Understand data coverage" : "Open response tools"}
+            <ArrowUpRight size={14} />
+          </Link>
+        </div>
+        <div className="hero-orbit">
+          <Waves size={52} strokeWidth={1.2} />
+          <i />
+          <i />
+        </div>
+      </section>
+      <div className="metric-grid">
+        {keys.map((key) => {
+          const d = metricDefinitions[key],
+            Icon = d.icon,
+            value = metrics[key],
+            rule = RULES[site.type].find((r) => r.key === key),
+            level =
+              value == null
+                ? "unknown"
+                : rule
+                  ? value >= rule.avoid
+                    ? "avoid"
+                    : value >= rule.caution
+                      ? "caution"
+                      : "low"
+                  : "low";
+          return (
+            <button
+              key={key}
+              className={`metric-card ${level}`}
+              onClick={() => setExpanded(key)}
+            >
+              <div className="metric-heading">
+                <span>{d.label}</span>
+                <Icon size={19} />
+              </div>
+              <div className="metric-value">
+                {value == null
+                  ? "—"
+                  : Number(value).toFixed(
+                      key === "temperature" || key === "wind" ? 1 : 2,
+                    )}
+                <small>{d.unit}</small>
+              </div>
+              <div className="metric-status">
+                {value == null
+                  ? "No local reading available"
+                  : isModel
+                    ? "Model estimate"
+                    : key === "wind" && site.type === "beach"
+                      ? "Transcribed · converted from knots"
+                      : "Synthetic demonstration"}
+              </div>
+              <Chart
+                values={history.map((r) => r[key])}
+                color={
+                  level === "avoid"
+                    ? "#b94650"
+                    : level === "caution"
+                      ? "#b58a3e"
+                      : "#228d84"
+                }
+                height={90}
+                bars={key === "rainfall"}
+                threshold={!isModel ? rule?.avoid : null}
+                label={`${d.label} history in ${d.unit}`}
+              />
+              <div className="metric-footer">
+                <span>
+                  {rule && !isModel
+                    ? `Demo threshold ${rule.avoid} ${rule.unit}`
+                    : "View history & source"}
+                </span>
+                <ArrowUpRight size={14} />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <div className="forecast-bottom">
+        <section className="panel">
+          <div className="panel-head">
+            <h2>{isModel ? "Forecast context" : "Why this risk level?"}</h2>
+            <Info size={17} className="muted" />
+          </div>
+          {isModel ? (
+            <div className="stack">
+              <p className="compact muted">
+                Current weather is fetched from Open-Meteo, with the original
+                timestamps and units retained. No missing river level or flow
+                value is substituted.
+              </p>
+              <p className="compact muted">
+                Nearshore rip currents require local observations. Ocean model
+                currents and sea-level estimates do not establish beach safety.
+              </p>
+              <a
+                className="text-link"
+                href="https://open-meteo.com/en/docs"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open-Meteo documentation
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          ) : (
+            <>
+              <div className="driver-list">
+                {currentRisk.drivers.map((d) => (
+                  <div className="driver" key={d.key}>
+                    <span className={`driver-dot ${d.level}`} />
+                    <span>{d.label}</span>
+                    <strong>
+                      {d.value == null
+                        ? "Unavailable"
+                        : `${d.value.toFixed(2)} ${d.unit}`}
+                    </strong>
+                    <Badge value={d.level}>
+                      {d.level === "unknown"
+                        ? "MISSING"
+                        : d.level.toUpperCase()}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+              <p className="source-note">
+                Rules are transparent demo thresholds, not a trained or
+                calibrated prediction model. Missing inputs reduce coverage.
+              </p>
+              <ScenarioControl />
+            </>
+          )}
+        </section>
+        <section className="panel">
+          {site.type === "beach" ? (
+            <>
+              <div className="panel-head">
+                <h2>{isModel ? "Sea level context" : "Tide reference"}</h2>
+                <Waves size={20} className="muted" />
+              </div>
+              {isModel ? (
+                <>
+                  <div className="metric-value">
+                    {sample.sea_level_msl == null
+                      ? "—"
+                      : sample.sea_level_msl.toFixed(2)}
+                    <small>m MSL</small>
+                  </div>
+                  <p className="source-note">
+                    Model sea level relative to global mean sea level. This is a
+                    different datum from the transcribed tide chart; coastal
+                    accuracy is limited.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="compact muted">
+                    {tideDay?.date} · transcribed chart, unverified
+                  </p>
+                  <div className="tide-list">
+                    {[
+                      ...(tideDay?.high_tides || []).map((x) => ({
+                        ...x,
+                        type: "High tide",
+                      })),
+                      ...(tideDay?.low_tides || []).map((x) => ({
+                        ...x,
+                        type: "Low tide",
+                      })),
+                    ]
+                      .sort((a, b) => a.time.localeCompare(b.time))
+                      .map((t, i) => (
+                        <div key={i}>
+                          <span>
+                            <Clock size={14} />
+                            {t.time} IST
+                          </span>
+                          <strong>{t.height_m.toFixed(2)} m</strong>
+                          <small>{t.type}</small>
+                        </div>
+                      ))}
+                  </div>
+                  <a
+                    href="https://incois.gov.in/site/forecast.jsp"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-link"
+                  >
+                    Check official ocean advisories
+                    <ExternalLink size={12} />
+                  </a>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="panel-head">
+                <h2>Upstream matters</h2>
+                <CloudRain size={21} className="muted" />
+              </div>
+              <p className="compact muted">
+                Rainfall higher in the catchment can change conditions
+                downstream. A regional reservoir release is not a local
+                river-level observation.
+              </p>
+              <div className="data-gap">
+                <ShieldAlert size={19} />
+                <div>
+                  <strong>
+                    {site.type === "river"
+                      ? "Local river gauge unavailable"
+                      : "Gauge readings are synthetic"}
+                  </strong>
+                  <p>
+                    Station location, datum and terrain must be validated before
+                    operational forecasting.
+                  </p>
+                </div>
+              </div>
+              <Link to="/data" className="text-link">
+                Review the source register
+                <ArrowUpRight size={13} />
+              </Link>
+            </>
+          )}
+        </section>
+      </div>
+      <div className="forecast-export">
+        <span>
+          <Clock size={14} />
+          {isModel
+            ? "Model timestamps shown in IST."
+            : "“Now” is the selected dataset replay time, not a live sensor reading."}
+        </span>
+        <button
+          className="text-link"
+          onClick={() => {
+            downloadJSON(`${siteId}-${source}-forecast.json`, {
+              site: siteId,
+              source,
+              timestamp: sample.timestamp,
+              values: metrics,
+              method: currentRisk?.method,
+              model_source: isModel ? model.source_url : null,
+            });
+            notify("Forecast snapshot exported with source and timestamp.");
           }}
-        />
+        >
+          Export snapshot
+          <ArrowUpRight size={13} />
+        </button>
       </div>
-
-      {/* Current value */}
-      <div className="mt-3 flex items-baseline justify-center gap-1">
-        <span className="text-2xl font-bold text-gray-900">
-          {formatValue(numericValue)}
-        </span>
-
-        <span className="text-sm font-medium text-gray-500">
-          {unit}
-        </span>
-      </div>
-
-      <div className="mt-1 text-center text-xs text-gray-400">
-        {Math.round(percentage)}% of maximum
-      </div>
+      <Footer />
+      {expanded && (
+        <Modal
+          title={metricDefinitions[expanded].label}
+          onClose={() => setExpanded(null)}
+        >
+          <p>
+            {isModel ? "Numerical weather model" : "Supplied dataset replay"} ·{" "}
+            {metricDefinitions[expanded].unit}. Gaps remain gaps in the chart.
+          </p>
+          <Chart
+            values={rows
+              .slice(Math.max(0, index - 24), index + 25)
+              .map((r) => r[expanded])}
+            height={170}
+            label={`${metricDefinitions[expanded].label} detailed history`}
+          />
+          <div className="detail-table">
+            {history.map((r, i) => (
+              <div key={i}>
+                <span>{formatTime(r.timestamp)} IST</span>
+                <strong>
+                  {r[expanded] == null
+                    ? "Missing"
+                    : `${Number(r[expanded]).toFixed(2)} ${metricDefinitions[expanded].unit}`}
+                </strong>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
-
-function normalizeStatus(status) {
-  if (!status) {
-    return 'unknown';
-  }
-
-  const normalized = String(status).toLowerCase().trim();
-
-  if (
-    normalized === 'safe' ||
-    normalized === 'caution' ||
-    normalized === 'avoid'
-  ) {
-    return normalized;
-  }
-
-  return 'unknown';
-}
-
-function formatValue(value) {
-  if (Number.isInteger(value)) {
-    return value;
-  }
-
-  return Number(value).toFixed(2);
-}
-
-function formatRelativeTime(timestamp) {
-  if (!timestamp) {
-    return 'Unknown';
-  }
-
-  const date = new Date(timestamp);
-
-  if (Number.isNaN(date.getTime())) {
-    return 'Unknown';
-  }
-
-  const now = Date.now();
-  const difference = Math.max(0, now - date.getTime());
-
-  const seconds = Math.floor(difference / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (seconds < 60) {
-    return 'Just now';
-  }
-
-  if (minutes < 60) {
-    return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
-  }
-
-  if (hours < 24) {
-    return `${hours} hour${hours === 1 ? '' : 's'} ago`;
-  }
-
-  if (days < 7) {
-    return `${days} day${days === 1 ? '' : 's'} ago`;
-  }
-
-  return formatExactTime(timestamp);
-}
-
-function formatExactTime(timestamp) {
-  if (!timestamp) {
-    return 'Unknown';
-  }
-
-  const date = new Date(timestamp);
-
-  if (Number.isNaN(date.getTime())) {
-    return 'Unknown';
-  }
-
-  return date.toLocaleString();
-}
-
-export default ForecastPage;
