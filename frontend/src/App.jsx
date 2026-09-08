@@ -22,12 +22,15 @@ import {
 } from "lucide-react";
 import { WaterProvider } from "./store/WaterContext";
 import { useWater } from "./store/water-context";
-import ExplorePage from "./pages/ExplorePage";
+import ExplorePage from "./pages/ExploreV2";
 import "./App.css";
+import "./upgrade.css";
+import LoginPage from "./pages/LoginPage";
+import { AuthProvider, useAuth } from "./store/auth-context";
 import "./modes.css";
 const ForecastPage = lazy(() => import("./pages/ForecastPage"));
-const EmergencyPage = lazy(() => import("./pages/EmergencyPage"));
-const RescueDashboard = lazy(() => import("./pages/RescueDashboard"));
+const EmergencyPage = lazy(() => import("./pages/EmergencyV2"));
+const RescueDashboard = lazy(() => import("./pages/RescueV2"));
 const DataPage = lazy(() => import("./pages/DataPage"));
 const items = [
   ["/explore", "Explore", Compass],
@@ -36,6 +39,10 @@ const items = [
   ["/dashboard", "Rescue console", Radio],
 ];
 function Shell() {
+  const { user, admin, logout } = useAuth();
+  const navItems = items.filter((i) =>
+    admin ? i[0] !== "/emergency" : i[0] !== "/dashboard",
+  );
   const {
     site,
     loadError,
@@ -68,7 +75,7 @@ function Shell() {
         </Link>
         <div className="nav-label">YOUR WATER SAFETY NETWORK</div>
         <nav className="main-nav" aria-label="Main navigation">
-          {items.map(([to, label, Icon]) => (
+          {navItems.map(([to, label, Icon]) => (
             <NavLink key={to} to={to}>
               <Icon size={21} />
               <span>{label}</span>
@@ -79,11 +86,13 @@ function Shell() {
           ))}
         </nav>
         <div className="sidebar-divider" />
-        <NavLink className="data-nav" to="/data">
-          <Database size={20} />
-          Data & sources
-          <ArrowUpRight size={16} />
-        </NavLink>
+        {admin && (
+          <NavLink className="data-nav" to="/data">
+            <Database size={20} />
+            Data & sources
+            <ArrowUpRight size={16} />
+          </NavLink>
+        )}
         <div className="sidebar-bottom">
           <div className="network-art">
             <Waves size={31} />
@@ -104,7 +113,7 @@ function Shell() {
               : "Loading pilot sites"}
           </div>
           <div className="version">
-            SIH 2026 <span>PROTOTYPE v1.0</span>
+            SIH 2026 <span>PROTOTYPE v2.0</span>
           </div>
         </div>
       </aside>
@@ -133,9 +142,12 @@ function Shell() {
                       : "Device demo"}
             </span>
             <span className="demo-label">
-              <Activity size={14} /> DEMO WORKSPACE
+              <Activity size={14} />{" "}
+              {user.demo ? "CONNECTED DRILL" : "ACCOUNT WORKSPACE"}
             </span>
-            <span className="avatar">SW</span>
+            <button className="button secondary" onClick={logout}>
+              Sign out
+            </button>
           </div>
         </header>
         {(!online || offlineDemo) && (
@@ -147,12 +159,34 @@ function Shell() {
         )}
         {state.scenarios[siteId] === "danger" &&
           location.pathname !== "/emergency" && (
-            <Link className="scenario-alert" to="/emergency">
+            <Link
+              className="scenario-alert"
+              to={admin ? "/dashboard" : "/emergency"}
+            >
               <ShieldAlert size={18} />
               High-risk simulation at {site?.name}. Open emergency response{" "}
               <ArrowUpRight size={17} />
             </Link>
           )}
+        {user.demo && (
+          <div className="drill-banner">
+            Connected drill · Share this code with your other dashboard:{" "}
+            <strong>{user.code}</strong>
+            <button onClick={() => navigator.clipboard.writeText(user.code)}>
+              Copy code
+            </button>
+          </div>
+        )}
+        {!admin &&
+          state.messages
+            .filter((m) => m.site === siteId)
+            .slice(-1)
+            .map((m) => (
+              <div className="drill-banner" role="status" key={m.id}>
+                <strong>Rescue advisory</strong>
+                {m.text}
+              </div>
+            ))}
         <main id="main-content" tabIndex={-1}>
           {loadError ? (
             <div className="load-state">
@@ -185,21 +219,47 @@ function Shell() {
                 />
                 <Route
                   path="/emergency"
-                  element={<EmergencyPage key={siteId} />}
+                  element={
+                    !admin ? (
+                      <EmergencyPage key={siteId} />
+                    ) : (
+                      <Navigate to="/dashboard" replace />
+                    )
+                  }
                 />
                 <Route
                   path="/dashboard"
-                  element={<RescueDashboard key={siteId} />}
+                  element={
+                    admin ? (
+                      <RescueDashboard key={siteId} />
+                    ) : (
+                      <Navigate to="/explore" replace />
+                    )
+                  }
                 />
-                <Route path="/data" element={<DataPage key={siteId} />} />
-                <Route path="*" element={<Navigate to="/explore" replace />} />
+                <Route
+                  path="/data"
+                  element={
+                    admin ? (
+                      <DataPage key={siteId} />
+                    ) : (
+                      <Navigate to="/explore" replace />
+                    )
+                  }
+                />
+                <Route
+                  path="*"
+                  element={
+                    <Navigate to={admin ? "/dashboard" : "/explore"} replace />
+                  }
+                />
               </Routes>
             </Suspense>
           )}
         </main>
       </div>
       <nav className="mobile-nav" aria-label="Mobile navigation">
-        {items.map(([to, label, Icon]) => (
+        {navItems.map(([to, label, Icon]) => (
           <NavLink key={to} to={to}>
             <Icon size={22} />
             <span>{label.replace(" console", "")}</span>
@@ -215,12 +275,23 @@ function Shell() {
     </div>
   );
 }
+function Gate() {
+  const { user, loading } = useAuth();
+  if (loading)
+    return <div className="load-state">Preparing your workspace…</div>;
+  if (!user) return <LoginPage />;
+  return (
+    <WaterProvider key={user.id}>
+      <Shell />
+    </WaterProvider>
+  );
+}
 export default function App() {
   return (
     <BrowserRouter>
-      <WaterProvider>
-        <Shell />
-      </WaterProvider>
+      <AuthProvider>
+        <Gate />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

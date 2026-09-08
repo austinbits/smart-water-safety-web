@@ -7,7 +7,7 @@ const manifest = JSON.parse(
 const sites = Object.fromEntries(
   manifest.sites.map((s) => [
     s.id,
-    JSON.parse(fs.readFileSync(path.join(root, `${s.id}.json`), "utf8")),
+    JSON.parse(fs.readFileSync(path.resolve(__dirname, `../../data/normalized/${s.id}.json`), "utf8")),
   ]),
 );
 function siteById(id) {

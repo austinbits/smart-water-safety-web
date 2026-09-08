@@ -85,13 +85,28 @@ async function createServer({ pool = null, memory = false } = {}) {
   app.get("/api/health", (req, res) =>
     res.json({
       status: "ok",
-      version: "1.0.0",
+      version: "2.0.0",
       storage: store.mode,
       sites: Object.keys(sites).length,
       datasets: manifest.files.length,
       live_dispatch: false,
       uptime: Math.floor(process.uptime()),
     }),
+  );
+  const { requireAdmin } = await require("./operations").installOperations(
+    app,
+    { pool, memory, sites },
+  );
+  app.use("/api/datasets", requireAdmin);
+  app.get("/api/data/catalog", requireAdmin, async (req, res) =>
+    res.json(
+      JSON.parse(
+        await fs.readFile(
+          path.resolve(__dirname, "../../data/normalized/catalog.json"),
+          "utf8",
+        ),
+      ),
+    ),
   );
   app.get("/api/sites", (req, res) => res.json(manifest.sites));
   app.get("/api/data/manifest", (req, res) => res.json(manifest));
@@ -107,11 +122,9 @@ async function createServer({ pool = null, memory = false } = {}) {
       limit < 1 ||
       limit > 100
     )
-      return res
-        .status(400)
-        .json({
-          error: "Offset must be nonnegative and limit between 1 and 100.",
-        });
+      return res.status(400).json({
+        error: "Offset must be nonnegative and limit between 1 and 100.",
+      });
     try {
       const rows = JSON.parse(
         await fs.readFile(
@@ -130,18 +143,16 @@ async function createServer({ pool = null, memory = false } = {}) {
         issues: file.issues,
       });
     } catch {
-      res
-        .status(404)
-        .json({
-          error:
-            "This file is a raster, map source or text log. Its sample and metadata are available in the register.",
-        });
+      res.status(404).json({
+        error:
+          "This file is a raster, map source or text log. Its sample and metadata are available in the register.",
+      });
     }
   });
   app.get("/api/sites/:id", (req, res) => {
     const s = siteById(req.params.id);
     if (!s) return res.status(404).json({ error: "Site not found." });
-    res.json(s);
+    res.json({ ...s, replay: [] });
   });
   app.get("/api/sites/:id/:layer", (req, res, next) => {
     const s = siteById(req.params.id);
@@ -186,12 +197,10 @@ async function createServer({ pool = null, memory = false } = {}) {
     try {
       res.json(await getWeather(s));
     } catch {
-      res
-        .status(503)
-        .json({
-          error:
-            "Weather model is unavailable. No current observation or replacement is inferred.",
-        });
+      res.status(503).json({
+        error:
+          "Weather model is unavailable. No current observation or replacement is inferred.",
+      });
     }
   });
   app.get("/api/metrics/:id/history", (req, res) => {
@@ -268,11 +277,9 @@ async function createServer({ pool = null, memory = false } = {}) {
     try {
       res.json(await store.session(req.body.token));
     } catch {
-      res
-        .status(503)
-        .json({
-          error: "Demo storage unavailable. Device demo is still available.",
-        });
+      res.status(503).json({
+        error: "Demo storage unavailable. Device demo is still available.",
+      });
     }
   });
   const demo = async (req, res, next) => {
@@ -311,12 +318,10 @@ async function createServer({ pool = null, memory = false } = {}) {
       )
         res.status(400).json({ error: e.message });
       else
-        res
-          .status(503)
-          .json({
-            error:
-              "Could not save this demo action. Retry with the same event ID.",
-          });
+        res.status(503).json({
+          error:
+            "Could not save this demo action. Retry with the same event ID.",
+        });
     }
   });
   // Legacy reads remain session-scoped; mutations never reset existing production tables.
@@ -360,18 +365,16 @@ async function createServer({ pool = null, memory = false } = {}) {
   );
   app.use((err, req, res, next) => {
     if (res.headersSent) return next(err);
-    res
-      .status(err.status || 500)
-      .json({
-        error:
-          err.status === 413
-            ? "Request too large."
-            : err.status === 400
-              ? "Invalid JSON request."
-              : err.status === 403
-                ? "Origin not allowed."
-                : "The request could not be completed.",
-      });
+    res.status(err.status || 500).json({
+      error:
+        err.status === 413
+          ? "Request too large."
+          : err.status === 400
+            ? "Invalid JSON request."
+            : err.status === 403
+              ? "Origin not allowed."
+              : "The request could not be completed.",
+    });
   });
   return { app, server, io, store };
 }

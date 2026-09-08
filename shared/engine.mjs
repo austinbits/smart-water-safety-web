@@ -357,9 +357,15 @@ export function planRoute(site, start, options = {}) {
   const hazards = (options.features || site.features).features.filter(
     (f) => f.properties.category === "hazard" && f.properties.level === "high",
   );
-  const safe = site.features.features.filter(
+  const safe = (
+    options.destination
+      ? site.features.features.filter(
+          (f) => f.properties.id === options.destination,
+        )
+      : site.features.features
+  ).filter(
     (f) =>
-      f.properties.category === "candidate" &&
+      (options.destination || f.properties.category === "candidate") &&
       f.geometry.type === "Point" &&
       !/railway|cave/i.test(f.properties.name),
   );
@@ -379,9 +385,21 @@ export function planRoute(site, start, options = {}) {
     if (!nearest || nearest.d > maxDistance) return null;
     const n = nodes.length;
     nodes.push(nearest.q);
-    edges.push(
-      { a: n, b: nearest.e.a, meters: distance(nearest.q, nodes[nearest.e.a]) },
-      { a: n, b: nearest.e.b, meters: distance(nearest.q, nodes[nearest.e.b]) },
+    edges.splice(
+      edges.indexOf(nearest.e),
+      1,
+      {
+        ...nearest.e,
+        a: n,
+        b: nearest.e.a,
+        meters: distance(nearest.q, nodes[nearest.e.a]),
+      },
+      {
+        ...nearest.e,
+        a: n,
+        b: nearest.e.b,
+        meters: distance(nearest.q, nodes[nearest.e.b]),
+      },
     );
     return { n, gap: nearest.d };
   }
@@ -408,7 +426,16 @@ export function planRoute(site, start, options = {}) {
     const crowd = (site.crowd || [])
       .filter((c) => distance(mid, [c.lng, c.lat]) < 120)
       .reduce((s, c) => s + c.count, 0);
-    const weight = e.meters * (1 + Math.min(crowd / 200, 2));
+    const moderate = (options.features || site.features).features.some(
+      (h) =>
+        h.properties.category === "hazard" &&
+        h.properties.level === "medium" &&
+        crossesGeometry(nodes[e.a], nodes[e.b], h.geometry),
+    );
+    const weight =
+      e.meters *
+      (1 + Math.min(crowd / 200, 2) + (moderate ? 4 : 0)) *
+      (options.penalized?.has(e.route) ? 4 : 1);
     adjacency[e.a].push({ to: e.b, weight, e });
     adjacency[e.b].push({ to: e.a, weight, e });
   });
@@ -466,6 +493,7 @@ export function planRoute(site, start, options = {}) {
     distance_m: Math.round(length),
     duration_min: Math.max(1, Math.ceil(length / 60)),
     destination: target.f.properties.name,
+    destination_id: target.f.properties.id,
     verification: "candidate_only",
     start_gap_m: Math.round(from.gap),
     end_gap_m: Math.round(target.snap.gap),

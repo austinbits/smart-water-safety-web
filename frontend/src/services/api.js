@@ -30,9 +30,11 @@ export async function api(path, options = {}) {
   const response = await fetch(`${API_URL}/api${path}`, {
     ...options,
     credentials: "include",
-    signal: options.signal || AbortSignal.timeout(12000),
+    signal: options.signal || AbortSignal.timeout(60000),
     headers: {
       "Content-Type": "application/json",
+      ...(typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sws-workspace') ? {'X-Workspace-Key':sessionStorage.getItem('sws-workspace')} : {}),
+      ...(typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sws-auth') ? {Authorization:'Bearer '+sessionStorage.getItem('sws-auth')} : {}),
       ...(storage.get("demo-token", null)
         ? { "X-Demo-Session": storage.get("demo-token", null) }
         : {}),

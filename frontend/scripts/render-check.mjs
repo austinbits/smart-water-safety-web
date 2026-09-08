@@ -20,10 +20,10 @@ try {
   );
   const pages = await Promise.all(
     [
-      "ExplorePage",
+      "ExploreV2",
       "ForecastPage",
-      "EmergencyPage",
-      "RescueDashboard",
+      "EmergencyV2",
+      "RescueV2",
       "DataPage",
     ].map(async (name) => ({
       name,
@@ -59,7 +59,7 @@ try {
         scenario,
         risk: riskFor(site, site.timeline[0], scenario),
         features: dynamicFeatures(site, scenario),
-        people: site.replay[0],
+        people: site.replay[0] || [],
         position: site.center,
         zone: "high",
         connection: "supabase",

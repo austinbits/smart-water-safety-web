@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useEffectEvent } from "react";
-import { api, storage, SOCKET_URL } from "../services/api";
-import { initialState, applyAction } from "../../../shared/demo.mjs";
+import { api, storage } from "../services/api";
+import { initialState } from "../../../shared/demo.mjs";
 import {
   riskFor,
   dynamicFeatures,
@@ -8,17 +8,20 @@ import {
   distance,
 } from "../../../shared/engine.mjs";
 import { Context } from "./water-context";
+import { zoneForecast } from "../../../shared/navigation.mjs";
+import { useAuth } from "./auth-context";
 export function WaterProvider({ children }) {
+  const { user, admin } = useAuth();
+  const [replay, setReplay] = useState([]);
+  const [syncedAt, setSyncedAt] = useState(null);
   const [manifest, setManifest] = useState(null),
     [bundles, setBundles] = useState({}),
     [loadError, setLoadError] = useState("");
   const [siteId, setSiteId] = useState(() => storage.get("site", "calangute")),
-    [state, setState] = useState(() =>
-      storage.get("workspace", initialState()),
-    );
+    [state, setState] = useState(() => initialState());
   const [online, setOnline] = useState(navigator.onLine),
     [connection, setConnection] = useState("connecting"),
-    [retry, setRetry] = useState(0);
+    [retry] = useState(0);
   const [frame, setFrame] = useState(0),
     [playing, setPlaying] = useState(false),
     [toast, setToast] = useState("");
@@ -29,12 +32,13 @@ export function WaterProvider({ children }) {
     storage.get("offline-sites", []),
   );
   const [offlineDemo, setOfflineDemo] = useState(false),
-    [pending, setPending] = useState(() => storage.get("pending", []));
+    [pending] = useState(() => storage.get("pending", []));
   const [emergency, setEmergency] = useState(() =>
       storage.get("emergency", null),
     ),
     [now, setNow] = useState(Date.now());
   const escalation = useRef(null);
+  const lastPositionSent = useRef(0);
   const watch = useRef(null),
     stateRef = useRef(state),
     pendingRef = useRef(pending),
@@ -75,9 +79,6 @@ export function WaterProvider({ children }) {
     setFrame(0);
     setPlaying(false);
   }
-  useEffect(() => {
-    storage.set("workspace", state);
-  }, [state]);
   useEffect(() => {
     storage.set("pending", pending);
   }, [pending]);
@@ -179,114 +180,56 @@ export function WaterProvider({ children }) {
     [],
   );
   useEffect(() => {
-    const listener = (e) => {
-      if (e.key === "sws:workspace")
-        setState(storage.get("workspace", initialState()));
-    };
-    window.addEventListener("storage", listener);
-    return () => window.removeEventListener("storage", listener);
-  }, []);
-  useEffect(() => {
-    if (!online || offlineDemo) return;
     let active = true,
-      socket;
-    const operation = actionChain.current.then(async () => {
+      timer;
+    async function poll() {
       try {
-        const session = await api("/demo/session", {
-          method: "POST",
-          body: JSON.stringify({ token: storage.get("demo-token", null) }),
-        });
-        if (!active) return;
-        storage.set("demo-token", session.token);
-        let updated = session.state;
-        for (const event of pendingRef.current) {
-          const result = await api("/demo/action", {
-            method: "POST",
-            body: JSON.stringify(event),
-          });
-          updated = result.state;
+        const d = await api("/workspace/state");
+        if (active) {
+          setState(d.state);
+          stateRef.current = d.state;
+          setConnection(d.storage);
+          setSyncedAt(Date.now());
         }
-        if (!active) return;
-        stateRef.current = updated;
-        pendingRef.current = [];
-        setState(updated);
-        setPending([]);
-        storage.set("pending", []);
-        setConnection(session.storage === "supabase" ? "supabase" : "server");
-        const { io } = await import("socket.io-client");
-        if (!active) return;
-        socket = io(SOCKET_URL, {
-          auth: { demoToken: session.token },
-          transports: ["websocket", "polling"],
-          reconnectionAttempts: 5,
-        });
-        socket.on("workspace", (s) => {
-          if (active && pendingRef.current.length === 0) {
-            stateRef.current = s;
-            setState(s);
-          }
-        });
-        socket.io.on("reconnect", () => {
-          if (active) setRetry((r) => r + 1);
-        });
-      } catch {
-        if (active) setConnection("device");
+      } catch (e) {
+        if (active) {
+          setConnection("device");
+          if (e.status === 401)
+            setLoadError("Session expired. Sign out and sign in again.");
+        }
+      } finally {
+        if (active) timer = setTimeout(poll, 3000);
       }
-    });
-    actionChain.current = operation.catch(() => {});
+    }
+    poll();
     return () => {
       active = false;
-      socket?.disconnect();
+      clearTimeout(timer);
     };
-  }, [online, offlineDemo, retry]);
+  }, [user.id, retry]);
   useEffect(() => {
-    if (!online || offlineDemo || connection !== "device") return;
-    const timer = setTimeout(() => setRetry((r) => r + 1), 15000);
-    return () => clearTimeout(timer);
-  }, [online, offlineDemo, connection, retry]);
+    let active = true;
+    if (admin && user.demo)
+      api("/workspace/replay/" + siteId)
+        .then((d) => {
+          if (active) setReplay(d);
+        })
+        .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [siteId, admin, user.demo]);
   function dispatch(action, payload = {}, eventId = crypto.randomUUID()) {
-    const event = { action, payload, eventId };
     const operation = actionChain.current.then(async () => {
-      const next = applyAction(
-        stateRef.current,
-        action,
-        payload,
-        event.eventId,
-      );
-      if (
-        online &&
-        !offlineDemo &&
-        ["supabase", "server"].includes(connection)
-      ) {
-        try {
-          const result = await api("/demo/action", {
-            method: "POST",
-            body: JSON.stringify(event),
-          });
-          stateRef.current = result.state;
-          setState(result.state);
-          return result.state;
-        } catch (e) {
-          if (
-            e.status >= 400 &&
-            e.status < 500 &&
-            ![401, 408, 429].includes(e.status)
-          )
-            throw e;
-          setConnection("device");
-          setToast(`${e.message} Saved on this device for retry.`);
-        }
-      }
-      stateRef.current = next;
-      setState(next);
-      const queued = [...pendingRef.current, event];
-      pendingRef.current = queued;
-      setPending(queued);
-      if (!storage.set("pending", queued))
-        setToast(
-          "Device storage is full. Keep this tab open until the actions sync.",
-        );
-      return next;
+      const d = await api("/workspace/action", {
+        method: "POST",
+        body: JSON.stringify({ action, payload, eventId }),
+      });
+      stateRef.current = d.state;
+      setState(d.state);
+      setConnection(d.storage);
+      setSyncedAt(Date.now());
+      return d.state;
     });
     actionChain.current = operation.catch(() => {});
     return operation;
@@ -307,17 +250,70 @@ export function WaterProvider({ children }) {
     () => (site ? riskFor(site, sample, scenario) : null),
     [site, sample, scenario],
   );
-  const features = useMemo(
-    () => (site ? dynamicFeatures(site, scenario) : null),
-    [site, scenario],
+  const features = useMemo(() => {
+    if (!site) return null;
+    const base = dynamicFeatures(site, scenario);
+    const zones = zoneForecast(
+      site,
+      sample,
+      site.timeline[Math.max(0, baselineIndex + Math.floor(frame / 3) - 1)],
+      scenario,
+    );
+    return {
+      ...base,
+      features: base.features.map((f) => {
+        const z = zones.find((z) => z.id === f.properties.id);
+        return z
+          ? {
+              ...f,
+              properties: {
+                ...f.properties,
+                display_level: z.level,
+                rising: z.rising,
+                ...(f.properties.category === "hazard"
+                  ? { level: z.level }
+                  : {}),
+              },
+            }
+          : f;
+      }),
+    };
+  }, [site, scenario, sample, baselineIndex, frame]);
+  const names = [
+    "Aarav",
+    "Diya",
+    "Ishaan",
+    "Meera",
+    "Rohan",
+    "Ananya",
+    "Kabir",
+    "Nisha",
+  ];
+  const simulated = (admin && user.demo ? replay[frame] || [] : []).map(
+    (p, i) => ({
+      ...p,
+      name: names[i % names.length] + " (demo)",
+      age: 19 + (i % 38),
+      source: "simulation",
+    }),
   );
-  const people = site?.replay[frame] || [],
-    demoPosition = people.find((p) => p.role === "visitor");
+  const people = admin
+    ? [
+        ...simulated,
+        ...(state.visitors || []).filter((v) => v.site === siteId),
+        ...state.teams
+          .filter((t) => t.site === siteId && Number.isFinite(t.lng))
+          .map((t) => ({ ...t, role: "team" })),
+      ]
+    : state.teams
+        .filter((t) => t.site === siteId && Number.isFinite(t.lng))
+        .map((t) => ({ ...t, role: "team" }));
+  const demoPosition = null;
   const position = location
     ? [location.lng, location.lat]
     : demoPosition
       ? [demoPosition.lng, demoPosition.lat]
-      : site?.center;
+      : site?.planning_start || site?.center;
   const zone = features
     ? classifyPosition(position, features.features)
     : "unknown";
@@ -335,6 +331,15 @@ export function WaterProvider({ children }) {
         timestamp: new Date().toISOString(),
       };
       setLocation(loc);
+      if (!admin && Date.now() - lastPositionSent.current > 5000) {
+        lastPositionSent.current = Date.now();
+        dispatch("position", {
+          ...loc,
+          site: siteId,
+          accuracy_m: loc.accuracy,
+          consent: true,
+        }).catch((e) => notify(e.message));
+      }
       if (record)
         setTrace((ps) => {
           const last = ps.at(-1);
@@ -351,9 +356,11 @@ export function WaterProvider({ children }) {
       );
       if (record) stopTrace();
     };
-    if (record) {
-      setTracking(true);
+    if (record || !admin) {
+      setTracking(record);
       setTrace([]);
+      if (watch.current !== null)
+        navigator.geolocation.clearWatch(watch.current);
       watch.current = navigator.geolocation.watchPosition(success, error, {
         enableHighAccuracy: true,
         maximumAge: 2000,
@@ -465,6 +472,10 @@ export function WaterProvider({ children }) {
   return (
     <Context.Provider
       value={{
+        user,
+        admin,
+        syncedAt,
+        sample,
         manifest,
         bundles,
         siteId,

@@ -13,6 +13,8 @@ const point = (coordinates, properties) => ({
   properties,
 });
 export default function WaterMap({
+  alternatives = [],
+  onDestinationSelect,
   selectedRoute,
   onRouteSelect,
   dark = false,
@@ -33,6 +35,7 @@ export default function WaterMap({
     online,
     state,
   } = useWater();
+  const [terrain, setTerrain] = useState(true);
   const position = positionOverride || contextPosition;
   const [fallback, setFallback] = useState(false);
   const container = useRef(null),
@@ -42,6 +45,8 @@ export default function WaterMap({
     [survey, setSurvey] = useState(false);
   useEffect(() => {
     props.current = {
+      alternatives,
+      onDestinationSelect,
       features,
       people,
       position,
@@ -56,6 +61,8 @@ export default function WaterMap({
       onMapPosition,
     };
   }, [
+    alternatives,
+    onDestinationSelect,
     features,
     people,
     position,
@@ -74,12 +81,23 @@ export default function WaterMap({
     if (!map?.getSource("site")) return;
     const p = props.current;
     map.getSource("site").setData(p.features);
+    map.getSource("alternatives")?.setData(
+      fc(
+        (p.alternatives || []).map((r) => ({
+          type: "Feature",
+          geometry: r.geometry,
+          properties: { color: r.color },
+        })),
+      ),
+    );
     map
       .getSource("people")
       .setData(
         fc(
           p.showPeople
-            ? p.people.map((u) => point([u.lng, u.lat], { ...u, name: u.id }))
+            ? p.people.map((u) =>
+                point([u.lng, u.lat], { ...u, name: u.name || u.id }),
+              )
             : [],
         ),
       );
@@ -133,10 +151,33 @@ export default function WaterMap({
         container: container.current,
         center: site.center,
         zoom: site.zoom,
+        pitch: 52,
+        bearing: -18,
         attributionControl: true,
         style: {
           version: 8,
+          glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+          terrain: { source: "elevation", exaggeration: 1.5 },
           sources: {
+            elevation: {
+              type: "raster-dem",
+              tiles: [
+                "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
+              ],
+              encoding: "terrarium",
+              tileSize: 256,
+              maxzoom: 15,
+              attribution: "Terrain © Mapzen / SRTM · AWS Open Data",
+            },
+            shade: {
+              type: "raster-dem",
+              tiles: [
+                "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
+              ],
+              encoding: "terrarium",
+              tileSize: 256,
+              maxzoom: 15,
+            },
             streets: {
               type: "raster",
               tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
@@ -172,10 +213,24 @@ export default function WaterMap({
       return;
     }
     mapRef.current = map;
-    map.addControl(new NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(
+      new NavigationControl({ showCompass: true, visualizePitch: true }),
+      "top-right",
+    );
     map.on("error", () => setError(true));
     map.on("load", () => {
+      map.addLayer({
+        id: "terrain-shading",
+        type: "hillshade",
+        source: "shade",
+        paint: {
+          "hillshade-exaggeration": 0.5,
+          "hillshade-shadow-color": "#365b4b",
+          "hillshade-highlight-color": "#f9f4dd",
+        },
+      });
       for (const name of [
+        "alternatives",
         "site",
         "people",
         "position",
@@ -230,9 +285,9 @@ export default function WaterMap({
             "#d7505c",
             "medium",
             "#d49b3f",
-            "#4b8bc5",
+            "#22a17a",
           ],
-          "fill-opacity": dark ? 0.23 : 0.05,
+          "fill-opacity": dark ? 0.32 : 0.22,
         },
       });
       map.addLayer({
@@ -280,6 +335,16 @@ export default function WaterMap({
         },
       });
       map.addLayer({
+        id: "route-alternatives",
+        type: "line",
+        source: "alternatives",
+        paint: {
+          "line-color": ["get", "color"],
+          "line-width": 5,
+          "line-opacity": 0.85,
+        },
+      });
+      map.addLayer({
         id: "selected-route-outline",
         type: "line",
         source: "selected",
@@ -321,6 +386,29 @@ export default function WaterMap({
           ],
           "circle-stroke-width": 2,
           "circle-stroke-color": dark ? "#183340" : "#fff",
+        },
+      });
+      map.addLayer({
+        id: "point-labels",
+        type: "symbol",
+        source: "site",
+        filter: [
+          "all",
+          ["==", ["geometry-type"], "Point"],
+          ["!=", ["get", "category"], "terrain"],
+        ],
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": ["Noto Sans Regular"],
+          "text-size": 11,
+          "text-offset": [0, 1.3],
+          "text-anchor": "top",
+          "text-max-width": 14,
+        },
+        paint: {
+          "text-color": dark ? "#e7f5ee" : "#23453b",
+          "text-halo-color": dark ? "#16343c" : "#ffffff",
+          "text-halo-width": 1.5,
         },
       });
       map.addLayer({
@@ -422,6 +510,7 @@ export default function WaterMap({
           "circle-stroke-width": 2,
         },
       });
+      // This callback synchronizes an external MapLibre instance.
       sync();
     });
     map.on("click", (e) => {
@@ -439,6 +528,8 @@ export default function WaterMap({
         props.current.onRouteSelect?.(f.properties.id);
         return;
       }
+      if (f.layer.id === "landmarks")
+        props.current.onDestinationSelect?.(f.properties.id);
       const node = document.createElement("div"),
         strong = document.createElement("strong"),
         small = document.createElement("small");
@@ -465,6 +556,7 @@ export default function WaterMap({
   useEffect(() => {
     sync();
   }, [
+    alternatives,
     features,
     people,
     position,
@@ -545,7 +637,23 @@ export default function WaterMap({
           <Maximize size={17} />
         </button>
       </div>
+      <div className="map-terrain-label">
+        {terrain ? "3D elevation · 1.5× relief" : "2D map"} · Mapzen terrain
+      </div>
       <div className="map-style-switch">
+        <button
+          className={terrain ? "active" : ""}
+          onClick={() => {
+            const next = !terrain;
+            setTerrain(next);
+            mapRef.current?.setTerrain(
+              next ? { source: "elevation", exaggeration: 1.5 } : null,
+            );
+            mapRef.current?.easeTo({ pitch: next ? 52 : 0 });
+          }}
+        >
+          {terrain ? "3D" : "2D"}
+        </button>
         <button
           className={!survey ? "active" : ""}
           onClick={() => setSurvey(false)}

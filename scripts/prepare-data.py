@@ -234,3 +234,14 @@ def main():
  print(f'Prepared {len(manifest)} source files and {len(sites)} sites. '+str({s['id']:s['corrections'] for s in sites}))
 
 if __name__=='__main__':main()
+
+# Keep visitor replay outside publicly deployed assets after regeneration.
+for site_id in ['calangute', 'muthathi', 'dudhsagar']:
+    bundle_path = Path(__file__).resolve().parents[1] / 'frontend/public/data' / (site_id + '.json')
+    bundle = json.loads(bundle_path.read_text(encoding='utf8'))
+    (Path(__file__).resolve().parents[1] / 'data/normalized' / (site_id + '.json')).write_text(json.dumps(bundle), encoding='utf8')
+    bundle['replay'] = []
+    bundle_path.write_text(json.dumps(bundle), encoding='utf8')
+catalog_path = Path(__file__).resolve().parents[1] / 'frontend/public/data/catalog.json'
+(Path(__file__).resolve().parents[1] / 'data/normalized/catalog.json').write_bytes(catalog_path.read_bytes())
+catalog_path.write_text('{}', encoding='utf8')

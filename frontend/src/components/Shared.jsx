@@ -12,6 +12,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import {useAuth} from "../store/auth-context";
 import { useWater } from "../store/water-context";
 export function SiteSwitcher() {
   const { manifest, siteId, setSiteId } = useWater();
@@ -99,9 +100,10 @@ export function ReplayBar() {
   );
 }
 export function Footer() {
+  const {admin}=useAuth();
   return (
     <footer className="page-footer">
-      <Link to="/data">
+      <Link to={admin?"/data":"/forecast"}>
         <ShieldCheck size={12} /> Source-mapped geography · clearly labelled
         demo data <ArrowUpRight size={12} />
       </Link>

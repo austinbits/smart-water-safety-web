@@ -27,12 +27,10 @@ function installAuth(app, pool) {
         .status(400)
         .json({ error: "Email and password are required." });
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY)
-      return res
-        .status(503)
-        .json({
-          error:
-            "Operator authentication is not configured. Use the clearly labelled demo console.",
-        });
+      return res.status(503).json({
+        error:
+          "Operator authentication is not configured. Use the clearly labelled demo console.",
+      });
     try {
       const response = await fetch(
         `${process.env.SUPABASE_URL}/auth/v1/token?grant_type=password`,
@@ -62,22 +60,27 @@ function installAuth(app, pool) {
         );
         role = r.rows[0]?.role || role;
       }
-      if (!["authority", "rescue_team"].includes(role))
+      role = ["authority", "rescue_team"].includes(role) ? role : "tourist";
+      if (req.body.role === "admin" && role === "tourist")
         return res
           .status(403)
-          .json({
-            error:
-              "This account has no operator role. An administrator must grant access in Supabase.",
-          });
+          .json({ error: "This account does not have administrator access." });
       const token = randomBytes(32).toString("hex");
       sessions.set(token, {
         id: result.user.id,
         email: result.user.email,
+        name: String(result.user.user_metadata?.name || "Visitor").slice(0, 80),
+        age:
+          Number.isInteger(result.user.user_metadata?.age) &&
+          result.user.user_metadata.age > 0 &&
+          result.user.user_metadata.age <= 120
+            ? result.user.user_metadata.age
+            : null,
         role,
         expires: Date.now() + Math.min(result.expires_in || 3600, 3600) * 1000,
       });
       setCookie(res, token);
-      res.json({ user: { email: result.user.email, role } });
+      res.json({ token, user: sessions.get(token) });
     } catch {
       res
         .status(503)
@@ -85,24 +88,34 @@ function installAuth(app, pool) {
     }
   });
   app.get("/api/auth/me", (req, res) => {
-    const s = sessions.get(readCookie(req));
+    const s = getUser(req);
     if (!s || s.expires < Date.now())
       return res
         .status(401)
         .json({ error: "Sign in to access the operator console." });
-    res.json({ user: { email: s.email, role: s.role } });
+    res.json({ user: s });
   });
   app.post("/api/auth/logout", (req, res) => {
-    sessions.delete(readCookie(req));
+    sessions.delete(
+      req.headers.authorization?.replace(/^Bearer /, "") || readCookie(req),
+    );
     setCookie(res, "", true);
     res.json({ signed_out: true });
   });
 }
 function requireOperator(req, res, next) {
-  const s = sessions.get(readCookie(req));
+  const s = getUser(req);
   if (!s || s.expires < Date.now())
     return res.status(401).json({ error: "Operator authentication required." });
+  if (!["authority", "rescue_team"].includes(s.role))
+    return res.status(403).json({ error: "Admin access required." });
   req.operator = s;
   next();
 }
-module.exports = { installAuth, requireOperator };
+function getUser(req) {
+  const token =
+    req.headers.authorization?.replace(/^Bearer /, "") || readCookie(req);
+  const s = sessions.get(token);
+  return s && s.expires > Date.now() ? s : null;
+}
+module.exports = { installAuth, requireOperator, getUser };

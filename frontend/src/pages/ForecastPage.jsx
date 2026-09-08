@@ -25,6 +25,8 @@ import {
   ScenarioControl,
 } from "../components/Shared";
 import { api, downloadJSON } from "../services/api";
+import ZoneOutlook from "../components/ZoneOutlook";
+import { useAuth } from "../store/auth-context";
 import { riskFor, RULES } from "../../../shared/engine.mjs";
 const formatTime = (t) =>
   t
@@ -45,6 +47,7 @@ const metricDefinitions = {
   temperature: { label: "Air temperature", unit: "°C", icon: Thermometer },
 };
 export default function ForecastPage() {
+  const { admin, user } = useAuth();
   const { site, siteId, frame, scenario, notify } = useWater();
   const [source, setSource] = useState("demo"),
     [model, setModel] = useState(null),
@@ -114,7 +117,16 @@ export default function ForecastPage() {
   const index = Math.min(rows.length - 1, baseline + horizon),
     sample = rows[index] || {};
   const currentRisk = isModel ? null : riskFor(site, sample, scenario);
-  const metrics = isModel ? sample : currentRisk.metrics;
+  const metrics = isModel
+    ? sample
+    : {
+        ...currentRisk.metrics,
+        ...Object.fromEntries(
+          Object.entries(sample.simulation_metrics || {}).filter(
+            ([key]) => currentRisk.metrics[key] == null,
+          ),
+        ),
+      };
   const keys =
     site.type === "beach"
       ? ["wave_height", "flow_speed", "wind", "rainfall"]
@@ -267,7 +279,10 @@ export default function ForecastPage() {
                       : "Synthetic demonstration"}
               </div>
               <Chart
-                values={history.map((r) => r[key])}
+                values={history.map(
+                  (r) =>
+                    r[key] ?? (!isModel ? r.simulation_metrics?.[key] : null),
+                )}
                 color={
                   level === "avoid"
                     ? "#b94650"
@@ -343,7 +358,7 @@ export default function ForecastPage() {
                 Rules are transparent demo thresholds, not a trained or
                 calibrated prediction model. Missing inputs reduce coverage.
               </p>
-              <ScenarioControl />
+              {admin && user.demo && <ScenarioControl />}
             </>
           )}
         </section>
@@ -466,6 +481,18 @@ export default function ForecastPage() {
           <ArrowUpRight size={13} />
         </button>
       </div>
+      {!isModel && (
+        <p className="inline-notice">
+          Dataset replay includes generated estimates for missing local gauge or
+          temperature fields. These are illustrative values, not measured
+          observations.
+        </p>
+      )}
+      <ZoneOutlook
+        sample={sample}
+        previous={rows[Math.max(0, index - 3)]}
+        scenario={isModel ? "normal" : scenario}
+      />
       <Footer />
       {expanded && (
         <Modal

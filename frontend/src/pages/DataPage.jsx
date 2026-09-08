@@ -21,6 +21,13 @@ import {
 import { api, downloadJSON } from "../services/api";
 const sources = [
   {
+    name: "Regional terrain elevation",
+    publisher: "Mapzen / SRTM / AWS Open Data",
+    url: "https://registry.opendata.aws/terrain-tiles/",
+    label: "REAL REGIONAL DEM",
+    text: "Three 33×33 sampled grids plus streamed 3D terrain. Regional resolution; not a trail survey or bathymetry. Rendering exaggeration 1.5×.",
+  },
+  {
     name: "India emergency response",
     publisher: "Government of India",
     url: "https://112.gov.in/",
@@ -75,8 +82,7 @@ export default function DataPage() {
     [offset, setOffset] = useState(0),
     [recordError, setRecordError] = useState("");
   useEffect(() => {
-    fetch("/data/catalog.json")
-      .then((r) => r.json())
+    api("/data/catalog")
       .then(setCatalog)
       .catch(() => {});
   }, []);

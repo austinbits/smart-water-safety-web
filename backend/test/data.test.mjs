@@ -32,7 +32,8 @@ test("all 64 source files are archived byte-for-byte and all original KML downlo
 });
 test("all pilot bundles and corrected beach GPS are in the intended geographic bounds", () => {
   for (const id of ["calangute", "muthathi", "dudhsagar"]) {
-    const s = read(`frontend/public/data/${id}.json`);
+    const s = read(`data/normalized/${id}.json`);
+    assert.deepEqual(read(`frontend/public/data/${id}.json`).replay, []);
     assert.ok(s.routes_count > 0);
     assert.equal(s.replay.length, 61);
     assert.ok(s.timeline.length >= 48);
