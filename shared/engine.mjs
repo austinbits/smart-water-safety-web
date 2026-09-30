@@ -1,6 +1,7 @@
 // Shared, deterministic geospatial and risk rules. These are demonstration rules,
 // not a calibrated flood model or a certification of pedestrian safety.
 export const rad = (d) => (d * Math.PI) / 180;
+/** Approximate distance in metres between two longitude/latitude positions. */
 export function distance(a, b) {
   const h =
     Math.sin(rad(b[1] - a[1]) / 2) ** 2 +
@@ -9,6 +10,7 @@ export function distance(a, b) {
       Math.sin(rad(b[0] - a[0]) / 2) ** 2;
   return 6371000 * 2 * Math.asin(Math.min(1, Math.sqrt(h)));
 }
+/** Sum the distance of every segment in an ordered coordinate list. */
 export function lineDistance(points) {
   return points.slice(1).reduce((s, p, i) => s + distance(points[i], p), 0);
 }
@@ -23,6 +25,7 @@ function onSegment(p, a, b) {
     p[1] <= Math.max(a[1], b[1]) + 1e-10
   );
 }
+/** Test whether a point lies inside a closed coordinate ring. */
 export function inRing(p, ring) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -37,6 +40,7 @@ export function inRing(p, ring) {
   }
   return inside;
 }
+/** Test whether a point lies inside a GeoJSON Polygon or MultiPolygon. */
 export function inGeometry(p, geom) {
   if (!geom) return false;
   if (geom.type === "MultiPolygon")
@@ -62,6 +66,7 @@ function intersection(a, b, c, d) {
     ? [a[0] + t * rx, a[1] + t * ry]
     : null;
 }
+/** Determine whether a route segment crosses a polygon boundary or interior. */
 export function crossesGeometry(a, b, geom) {
   if (!geom) return false;
   if (geom.type === "MultiPolygon")
@@ -81,6 +86,7 @@ export function crossesGeometry(a, b, geom) {
       ),
   );
 }
+/** Return the strongest mapped hazard level containing the given position. */
 export function classifyPosition(position, features) {
   if (!position) return "unknown";
   const levels = features
@@ -155,6 +161,7 @@ export const RULES = {
     },
   ],
 };
+/** Calculate the site's transparent demonstration risk score and its drivers. */
 export function riskFor(site, values, scenario = "normal") {
   const metrics = { ...values };
   if (scenario === "watch" || scenario === "danger") {
@@ -173,18 +180,26 @@ export function riskFor(site, values, scenario = "normal") {
         level_rise: danger ? 0.38 : 0.16,
       });
   }
-  const drivers = RULES[site.type].map((r) => ({
-    ...r,
-    value: metrics[r.key] ?? null,
-    level:
-      metrics[r.key] == null
-        ? "unknown"
-        : metrics[r.key] >= r.avoid
-          ? "avoid"
-          : metrics[r.key] >= r.caution
-            ? "caution"
-            : "low",
-  }));
+  const drivers = RULES[site.type].map((rule) => {
+    const value = metrics[rule.key] ?? null;
+    const severity = Number.isFinite(value)
+      ? Math.max(0, Math.min(1, value / rule.avoid))
+      : null;
+
+    return {
+      ...rule,
+      value,
+      contribution: severity == null ? null : Math.round(severity * 100),
+      level:
+        value == null
+          ? "unknown"
+          : value >= rule.avoid
+            ? "avoid"
+            : value >= rule.caution
+              ? "caution"
+              : "low",
+    };
+  });
   const status = drivers.some((d) => d.level === "avoid")
     ? "avoid"
     : drivers.some((d) => d.level === "caution")
@@ -192,14 +207,86 @@ export function riskFor(site, values, scenario = "normal") {
       : drivers.every((d) => d.level === "unknown")
         ? "unknown"
         : "low";
+  const knownDrivers = drivers.filter((driver) => driver.contribution != null);
+  const highestContribution = Math.max(
+    0,
+    ...knownDrivers.map((driver) => driver.contribution),
+  );
+  const averageContribution = knownDrivers.length
+    ? knownDrivers.reduce((sum, driver) => sum + driver.contribution, 0) /
+      knownDrivers.length
+    : 0;
+  const score = Math.round(
+    Math.min(100, highestContribution * 0.7 + averageContribution * 0.3),
+  );
+  const confidence = Math.round(
+    (knownDrivers.length / Math.max(drivers.length, 1)) * 100,
+  );
+
   return {
     status,
+    score,
+    confidence,
     metrics,
     drivers,
-    method: "Uncalibrated demonstration thresholds",
+    method:
+      "70% strongest signal + 30% average signal, normalized against transparent demonstration thresholds",
     missing: drivers.filter((d) => d.level === "unknown").map((d) => d.label),
   };
 }
+
+/**
+ * Rank rescue teams for an incident using only evidence the prototype has.
+ * A missing team position never receives a made-up ETA; availability and crew
+ * size can still produce a useful readiness recommendation.
+ */
+export function rankRescueTeams(incident, teams) {
+  if (!incident) return [];
+
+  return teams
+    .filter((team) => team.site === incident.site)
+    .map((team) => {
+      const hasPosition =
+        Number.isFinite(team.lng) && Number.isFinite(team.lat);
+      const distanceM = hasPosition
+        ? Math.round(
+            distance([team.lng, team.lat], [incident.lng, incident.lat]),
+          )
+        : null;
+      const available = team.status === "available";
+      const proximityPoints =
+        distanceM == null ? 0 : Math.max(0, 30 - Math.round(distanceM / 100));
+      const crewPoints = Math.min(
+        15,
+        Math.max(0, Number(team.members) || 0) * 3,
+      );
+      const score = (available ? 55 : 0) + proximityPoints + crewPoints;
+
+      return {
+        ...team,
+        recommendation_score: Math.min(100, score),
+        distance_m: distanceM,
+        eta_min:
+          distanceM == null ? null : Math.max(1, Math.ceil(distanceM / 80)),
+        recommendation_reasons: [
+          available
+            ? "Available now"
+            : `Currently ${team.status.replaceAll("_", " ")}`,
+          distanceM == null
+            ? "Live team position unavailable; ETA not estimated"
+            : `${distanceM} m straight-line distance from request`,
+          `${team.members || 0} responders registered`,
+        ],
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.recommendation_score - a.recommendation_score ||
+        (a.distance_m ?? Infinity) - (b.distance_m ?? Infinity) ||
+        a.name.localeCompare(b.name),
+    );
+}
+/** Apply a selected demonstration scenario without mutating source geometry. */
 export function dynamicFeatures(site, scenario) {
   if (scenario === "normal") return site.features;
   return {
@@ -207,8 +294,7 @@ export function dynamicFeatures(site, scenario) {
     features: site.features.features.map((f) => {
       if (
         f.properties.category !== "hazard" ||
-        !["Polygon", "MultiPolygon"].includes(f.geometry.type) ||
-        f.properties.provenance !== "synthetic"
+        !["Polygon", "MultiPolygon"].includes(f.geometry.type)
       )
         return f;
       const polygons =
@@ -220,7 +306,15 @@ export function dynamicFeatures(site, scenario) {
         (a, p) => [a[0] + p[0] / ring.length, a[1] + p[1] / ring.length],
         [0, 0],
       );
-      const factor = scenario === "danger" ? 1.25 : 1.1;
+      const baseLevel = f.properties.level || "medium";
+      const factor =
+        scenario === "danger"
+          ? baseLevel === "high"
+            ? 1.18
+            : 1.3
+          : baseLevel === "high"
+            ? 1.08
+            : 1.15;
       const expanded = polygons.map((polygon) =>
         polygon.map((r) =>
           r.map((p) => [
@@ -237,6 +331,8 @@ export function dynamicFeatures(site, scenario) {
             scenario === "danger" || f.properties.level === "high"
               ? "high"
               : "medium",
+          scenario,
+          expansion_factor: factor,
           method:
             "Illustrative polygon expansion; not a flood extent prediction",
         },
@@ -249,6 +345,7 @@ export function dynamicFeatures(site, scenario) {
     }),
   };
 }
+/** Return the closest point and distance along a line segment. */
 export function projectOnSegment(p, a, b) {
   const scale = Math.cos(rad(p[1]));
   const dx = (b[0] - a[0]) * scale,
@@ -264,6 +361,7 @@ export function projectOnSegment(p, a, b) {
   return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
 }
 const graphs = new WeakMap();
+/** Convert mapped walking LineStrings into a connected routing graph. */
 export function buildGraph(features) {
   if (graphs.has(features)) return graphs.get(features);
   const segments = [];
@@ -345,6 +443,7 @@ export function buildGraph(features) {
   graphs.set(features, graph);
   return graph;
 }
+/** Find a mapped path that avoids restricted or high-risk geometry. */
 export function planRoute(site, start, options = {}) {
   if (!start || !start.every(Number.isFinite))
     return {
@@ -503,6 +602,7 @@ export function planRoute(site, start, options = {}) {
       "Planning preview only. Paths and destination require field verification.",
   };
 }
+/** Estimate a bounded search area from the last known movement observations. */
 export function searchEstimate(points, elapsedSeconds) {
   if (!points?.length) return null;
   const last = points.at(-1),

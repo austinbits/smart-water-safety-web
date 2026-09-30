@@ -590,7 +590,7 @@
 			</Point>
 		</Placemark>
 		<Placemark id="0FCEA3058541B0CC13EC">
-			<name>P1</name>
+			<name>Falls Access 01</name>
 			<LookAt>
 				<longitude>74.3087374938678</longitude>
 				<latitude>15.30904392964361</latitude>
@@ -684,7 +684,7 @@
 		</Point>
 	</Placemark>
 	<Placemark id="08BFC5B3DE41B0E0C6BF">
-		<name>P2</name>
+		<name>Falls Access 02</name>
 		<LookAt>
 			<longitude>74.31378722616115</longitude>
 			<latitude>15.31173742680514</latitude>
@@ -702,5 +702,5 @@
 			</coordinates>
 		</LineString>
 	</Placemark>
-</Document>
+<Placemark><name>Candidate emergency access link</name><description>Restricted until field verification</description><LineString><tessellate>1</tessellate><coordinates>74.3125,15.3122,0 74.3134024692553,15.30900390155849,0</coordinates></LineString></Placemark></Document>
 </kml>

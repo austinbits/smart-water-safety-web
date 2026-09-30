@@ -5,14 +5,17 @@ import { routeSupport } from "../../../shared/consensus.mjs";
 import { downloadJSON } from "../services/api";
 import { Badge } from "./Shared";
 
+/** Review consented or simulated path traces before proposing shared routes. */
 export default function Contributions() {
   const { site, state, dispatch, notify } = useWater();
   const [busy, setBusy] = useState(false);
-  const traces = state.traces.filter((t) => t.site === site.id);
+  const traces = state.traces.filter((trace) => trace.site === site.id);
+  // Consensus is pure, so it only needs to run again when evidence changes.
   const support = useMemo(
     () => routeSupport(site, state.traces),
     [site, state.traces],
   );
+  /** Add three visibly labelled synthetic traces for demonstration purposes. */
   async function sample() {
     setBusy(true);
     try {
@@ -43,6 +46,8 @@ export default function Contributions() {
       setBusy(false);
     }
   }
+
+  /** Mark one contribution as accepted or rejected after operator review. */
   async function review(id, status) {
     setBusy(true);
     try {

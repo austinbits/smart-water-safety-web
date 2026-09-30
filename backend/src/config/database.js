@@ -2,8 +2,11 @@ const { Pool } = require("pg");
 const fs = require("node:fs");
 const path = require("node:path");
 const { rootCertificates } = require("node:tls");
+
+/** Create the optional PostgreSQL pool, including strict TLS for remote hosts. */
 function createPool() {
   if (!process.env.DATABASE_URL) return null;
+
   const remote =
     /supabase\.(co|com)/.test(process.env.DATABASE_URL) ||
     process.env.NODE_ENV === "production";
@@ -21,8 +24,10 @@ function createPool() {
         : false;
   const connection = new URL(process.env.DATABASE_URL);
   // pg URL SSL parameters override the explicit TLS object; keep one source of truth.
-  for (const key of ["sslmode", "sslcert", "sslkey", "sslrootcert"])
+  for (const key of ["sslmode", "sslcert", "sslkey", "sslrootcert"]) {
     connection.searchParams.delete(key);
+  }
+
   const pool = new Pool({
     connectionString: connection.toString(),
     ssl,
@@ -33,4 +38,5 @@ function createPool() {
   pool.on("error", () => console.error("Database connection interrupted."));
   return pool;
 }
+
 module.exports = { createPool };

@@ -1,17 +1,27 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
+
+// This script runs after Vite. It discovers hashed build files and writes a
+// versioned service worker that supports the application's offline mode.
 const dist = path.resolve("dist");
-const list = [];
-function walk(p) {
-  for (const f of fs.readdirSync(p, { withFileTypes: true })) {
-    const full = path.join(p, f.name);
-    if (f.isDirectory()) walk(full);
-    else if (/\.(js|css)$/.test(f.name))
-      list.push("/" + path.relative(dist, full).replaceAll("\\", "/"));
+const buildAssets = [];
+
+/** Recursively collect generated JavaScript and CSS asset URLs. */
+function collectBuildAssets(directory) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      collectBuildAssets(fullPath);
+    } else if (/\.(js|css)$/.test(entry.name)) {
+      buildAssets.push(
+        "/" + path.relative(dist, fullPath).replaceAll("\\", "/"),
+      );
+    }
   }
 }
-walk(path.join(dist, "assets"));
+
+collectBuildAssets(path.join(dist, "assets"));
 const assets = [
   "/",
   "/index.html",
@@ -19,16 +29,22 @@ const assets = [
   "/favicon.svg",
   "/data/manifest.json",
   "/data/catalog.json",
-  ...["calangute", "muthathi", "dudhsagar"].flatMap((s) => [
-    `/data/${s}.json`,
-    `/data/kml/${s}.kml`,
+  ...["calangute", "muthathi", "dudhsagar"].flatMap((siteId) => [
+    `/data/${siteId}.json`,
+    `/data/kml/${siteId}.kml`,
   ]),
-  ...list,
+  ...buildAssets,
 ];
+
+// Content-derived versions automatically retire old caches after a new build.
 const digest = createHash("sha256");
-for (const asset of assets.filter((a) => a !== "/"))
+for (const asset of assets.filter((assetPath) => assetPath !== "/")) {
   digest.update(fs.readFileSync(path.join(dist, asset.slice(1))));
+}
 const version = digest.digest("hex").slice(0, 12);
+
+// The worker source is emitted as plain JavaScript because it runs separately
+// from the React bundle and must be available at the site's root URL.
 const worker = `const CACHE='sws-app-${version}',ASSETS=${JSON.stringify(assets)};
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('sws-app-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

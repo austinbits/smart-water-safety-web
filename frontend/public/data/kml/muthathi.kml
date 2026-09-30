@@ -483,7 +483,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="04D425F43341A142CE51">
-		<name>Untitled path</name>
+		<name>Riverbank Access</name>
 		<LookAt>
 			<longitude>77.29848818628298</longitude>
 			<latitude>12.29114833431707</latitude>
@@ -502,7 +502,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="0818A11E7441A14654EF">
-		<name>Untitled path</name>
+		<name>Riverbank Access</name>
 		<LookAt>
 			<longitude>77.32757126822749</longitude>
 			<latitude>12.3041733586118</latitude>
@@ -521,7 +521,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="08402369B341A148913C">
-		<name>Untitled path</name>
+		<name>Riverbank Access</name>
 		<LookAt>
 			<longitude>77.26255054231085</longitude>
 			<latitude>12.31025185849811</latitude>
@@ -540,7 +540,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="037A8BB2CC41A14A286F">
-		<name>Untitled path</name>
+		<name>Riverbank Access</name>
 		<LookAt>
 			<longitude>77.28278046634449</longitude>
 			<latitude>12.31530644229276</latitude>
@@ -559,7 +559,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="0845F45A8641A14AA967">
-		<name>Untitled path</name>
+		<name>Riverbank Access</name>
 		<LookAt>
 			<longitude>77.28278425264884</longitude>
 			<latitude>12.31530733846744</latitude>
@@ -578,7 +578,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="0074F2F1E041A14B6CA1">
-		<name>Untitled path</name>
+		<name>Riverbank Access</name>
 		<LookAt>
 			<longitude>77.2976424254317</longitude>
 			<latitude>12.32112643428285</latitude>
@@ -597,7 +597,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="007B68D47741A14C7013">
-		<name>Untitled path</name>
+		<name>Riverbank Access</name>
 		<LookAt>
 			<longitude>77.30308292270669</longitude>
 			<latitude>12.29297181179787</latitude>
@@ -635,7 +635,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="0D88F47A4E41A15E45B6">
-		<name>Untitled path</name>
+		<name>Riverbank Access</name>
 		<LookAt>
 			<longitude>77.32027809030347</longitude>
 			<latitude>12.30481848314797</latitude>
@@ -654,7 +654,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="06369B71F041A1604A8B">
-		<name>Untitled path</name>
+		<name>Riverbank Access</name>
 		<LookAt>
 			<longitude>77.317730792044</longitude>
 			<latitude>12.30558215135095</latitude>
@@ -673,7 +673,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="0698AD5B5141A1618E04">
-		<name>Untitled path</name>
+		<name>Riverbank Access</name>
 		<LookAt>
 			<longitude>77.32129761853024</longitude>
 			<latitude>12.3150090036269</latitude>
@@ -692,7 +692,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="0748D12CCB41A163A3EE">
-		<name>Untitled path</name>
+		<name>Riverbank Access</name>
 		<LookAt>
 			<longitude>77.31593248738633</longitude>
 			<latitude>12.31000077177397</latitude>
@@ -711,7 +711,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="0C3F24F93C41A164C6B4">
-		<name>Untitled path</name>
+		<name>Riverbank Access</name>
 		<LookAt>
 			<longitude>77.30982492272589</longitude>
 			<latitude>12.30579668694012</latitude>
@@ -818,5 +818,5 @@
 			</coordinates>
 		</LineString>
 	</Placemark>
-</Document>
+<Placemark><name>Candidate emergency access link</name><description>Restricted until field verification</description><LineString><tessellate>1</tessellate><coordinates>77.2948,12.3075,0 77.31093934883253,12.30653776284829,0</coordinates></LineString></Placemark></Document>
 </kml>

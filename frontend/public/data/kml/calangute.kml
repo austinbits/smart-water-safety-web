@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
 <Document id="document">
-	<name>SIH Calangute Beach</name>
+	<name>Calangute Routes and Safety Areas</name>
 	<gx:CascadingStyle kml:id="__managed_style_0F57AF62FE41B0030447_normal">
 		<styleUrl>https://earth.google.com/balloon_components/base/1.1.0.0/card_template.kml#main</styleUrl>
 		<Style>
@@ -587,7 +587,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000013">
-		<name>p1</name>
+		<name>Coastal Access 1</name>
 		<LookAt>
 			<longitude>73.75922191993205</longitude>
 			<latitude>15.54767338132186</latitude>
@@ -606,7 +606,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000014">
-		<name>p2</name>
+		<name>Coastal Access 2</name>
 		<LookAt>
 			<longitude>73.76048058342384</longitude>
 			<latitude>15.5475824411335</latitude>
@@ -625,7 +625,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000015">
-		<name>p3</name>
+		<name>Coastal Access 3</name>
 		<LookAt>
 			<longitude>73.75711730618525</longitude>
 			<latitude>15.5446723522162</latitude>
@@ -644,7 +644,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000016">
-		<name>p4</name>
+		<name>Coastal Access 4</name>
 		<LookAt>
 			<longitude>73.75593517652138</longitude>
 			<latitude>15.54162139779824</latitude>
@@ -663,7 +663,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000017">
-		<name>p5</name>
+		<name>Coastal Access 5</name>
 		<LookAt>
 			<longitude>73.75645840542569</longitude>
 			<latitude>15.54364659605826</latitude>
@@ -682,7 +682,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000018">
-		<name>p6</name>
+		<name>Coastal Access 6</name>
 		<LookAt>
 			<longitude>73.764295291911</longitude>
 			<latitude>15.54589851941403</latitude>
@@ -701,7 +701,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000019">
-		<name>p7</name>
+		<name>Coastal Access 7</name>
 		<LookAt>
 			<longitude>73.76184424012865</longitude>
 			<latitude>15.54002482422361</latitude>
@@ -720,7 +720,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00001A">
-		<name>p8</name>
+		<name>Coastal Access 8</name>
 		<LookAt>
 			<longitude>73.7632124226499</longitude>
 			<latitude>15.53424834274239</latitude>
@@ -739,7 +739,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00001B">
-		<name>p9</name>
+		<name>Coastal Access 9</name>
 		<LookAt>
 			<longitude>73.76117457147673</longitude>
 			<latitude>15.5293930910433</latitude>
@@ -758,7 +758,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00001C">
-		<name>p10</name>
+		<name>Coastal Access 10</name>
 		<LookAt>
 			<longitude>73.76185751396793</longitude>
 			<latitude>15.52859937200751</latitude>
@@ -777,7 +777,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00001D">
-		<name>p11</name>
+		<name>Coastal Access 11</name>
 		<LookAt>
 			<longitude>73.76031660493899</longitude>
 			<latitude>15.54664515541782</latitude>
@@ -796,7 +796,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00001E">
-		<name>p12</name>
+		<name>Coastal Access 12</name>
 		<LookAt>
 			<longitude>73.75504946913742</longitude>
 			<latitude>15.54577334402618</latitude>
@@ -815,7 +815,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00001F">
-		<name>p13</name>
+		<name>Coastal Access 13</name>
 		<LookAt>
 			<longitude>73.75710109812955</longitude>
 			<latitude>15.53857002381515</latitude>
@@ -834,7 +834,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000020">
-		<name>p14</name>
+		<name>Coastal Access 14</name>
 		<LookAt>
 			<longitude>73.77642597826143</longitude>
 			<latitude>15.55055663927416</latitude>
@@ -853,7 +853,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000021">
-		<name>p15</name>
+		<name>Coastal Access 15</name>
 		<LookAt>
 			<longitude>73.7675206470215</longitude>
 			<latitude>15.54830498396871</latitude>
@@ -872,7 +872,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000022">
-		<name>p16</name>
+		<name>Coastal Access 16</name>
 		<LookAt>
 			<longitude>73.79074636812719</longitude>
 			<latitude>15.53864658321863</latitude>
@@ -891,7 +891,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000023">
-		<name>p17</name>
+		<name>Coastal Access 17</name>
 		<LookAt>
 			<longitude>73.76948665743359</longitude>
 			<latitude>15.54639818297104</latitude>
@@ -910,7 +910,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000024">
-		<name>p18</name>
+		<name>Coastal Access 18</name>
 		<LookAt>
 			<longitude>73.76582367535163</longitude>
 			<latitude>15.54298555831597</latitude>
@@ -929,7 +929,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000025">
-		<name>p19</name>
+		<name>Coastal Access 19</name>
 		<LookAt>
 			<longitude>73.75961831845476</longitude>
 			<latitude>15.53509616942972</latitude>
@@ -948,7 +948,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000026">
-		<name>p20</name>
+		<name>Coastal Access 20</name>
 		<LookAt>
 			<longitude>73.78186749988005</longitude>
 			<latitude>15.53296078764096</latitude>
@@ -967,7 +967,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000027">
-		<name>p21</name>
+		<name>Coastal Access 21</name>
 		<LookAt>
 			<longitude>73.78069035614185</longitude>
 			<latitude>15.53190700331445</latitude>
@@ -986,7 +986,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000028">
-		<name>p22</name>
+		<name>Coastal Access 22</name>
 		<LookAt>
 			<longitude>73.78005448267029</longitude>
 			<latitude>15.52908504455398</latitude>
@@ -1005,7 +1005,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000029">
-		<name>p23</name>
+		<name>Coastal Access 23</name>
 		<LookAt>
 			<longitude>73.77503603838636</longitude>
 			<latitude>15.54191912251507</latitude>
@@ -1024,7 +1024,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00002A">
-		<name>p24</name>
+		<name>Coastal Access 24</name>
 		<LookAt>
 			<longitude>73.76054582700895</longitude>
 			<latitude>15.5386078131612</latitude>
@@ -1043,7 +1043,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00002B">
-		<name>p25</name>
+		<name>Coastal Access 25</name>
 		<LookAt>
 			<longitude>73.76418338146912</longitude>
 			<latitude>15.5384137753596</latitude>
@@ -1062,7 +1062,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00002C">
-		<name>p26</name>
+		<name>Coastal Access 26</name>
 		<LookAt>
 			<longitude>73.76477956581563</longitude>
 			<latitude>15.5409246258169</latitude>
@@ -1081,7 +1081,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00002D">
-		<name>p27</name>
+		<name>Coastal Access 27</name>
 		<LookAt>
 			<longitude>73.7650307218651</longitude>
 			<latitude>15.54399731775612</latitude>
@@ -1100,7 +1100,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00002E">
-		<name>p28</name>
+		<name>Coastal Access 28</name>
 		<LookAt>
 			<longitude>73.76397147732074</longitude>
 			<latitude>15.54313480237232</latitude>
@@ -1119,7 +1119,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00002F">
-		<name>p29</name>
+		<name>Coastal Access 29</name>
 		<LookAt>
 			<longitude>73.76209364893944</longitude>
 			<latitude>15.54327722898296</latitude>
@@ -1138,7 +1138,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000030">
-		<name>p30</name>
+		<name>Coastal Access 30</name>
 		<LookAt>
 			<longitude>73.76055795985791</longitude>
 			<latitude>15.54256639344478</latitude>
@@ -1157,7 +1157,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000031">
-		<name>p31</name>
+		<name>Coastal Access 31</name>
 		<LookAt>
 			<longitude>73.76267766135946</longitude>
 			<latitude>15.53412837984437</latitude>
@@ -1176,7 +1176,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000032">
-		<name>p32</name>
+		<name>Coastal Access 32</name>
 		<LookAt>
 			<longitude>73.763270935459</longitude>
 			<latitude>15.52962810009499</latitude>
@@ -1195,7 +1195,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000033">
-		<name>p33</name>
+		<name>Coastal Access 33</name>
 		<LookAt>
 			<longitude>73.76242930023801</longitude>
 			<latitude>15.52997541495708</latitude>
@@ -1214,7 +1214,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000034">
-		<name>p34</name>
+		<name>Coastal Access 34</name>
 		<LookAt>
 			<longitude>73.76023959253334</longitude>
 			<latitude>15.53125804470286</latitude>
@@ -1233,7 +1233,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000035">
-		<name>p35</name>
+		<name>Coastal Access 35</name>
 		<LookAt>
 			<longitude>73.76717253138837</longitude>
 			<latitude>15.5336263072282</latitude>
@@ -1252,7 +1252,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000036">
-		<name>p36</name>
+		<name>Coastal Access 36</name>
 		<LookAt>
 			<longitude>73.76489972927132</longitude>
 			<latitude>15.53155372293961</latitude>
@@ -1271,7 +1271,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000037">
-		<name>p37</name>
+		<name>Coastal Access 37</name>
 		<LookAt>
 			<longitude>73.76621552858241</longitude>
 			<latitude>15.54782855732686</latitude>
@@ -1290,7 +1290,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000038">
-		<name>p38</name>
+		<name>Coastal Access 38</name>
 		<LookAt>
 			<longitude>73.76486169315274</longitude>
 			<latitude>15.53653400038178</latitude>
@@ -1309,7 +1309,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000039">
-		<name>p39</name>
+		<name>Coastal Access 39</name>
 		<LookAt>
 			<longitude>73.76725495157947</longitude>
 			<latitude>15.53797702674177</latitude>
@@ -1328,7 +1328,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00003A">
-		<name>p40</name>
+		<name>Coastal Access 40</name>
 		<LookAt>
 			<longitude>73.76785161789263</longitude>
 			<latitude>15.54463127709549</latitude>
@@ -1347,7 +1347,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00003B">
-		<name>p41</name>
+		<name>Coastal Access 41</name>
 		<LookAt>
 			<longitude>73.76416157389302</longitude>
 			<latitude>15.53551522344511</latitude>
@@ -1366,7 +1366,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00003C">
-		<name>p42</name>
+		<name>Coastal Access 42</name>
 		<LookAt>
 			<longitude>73.7632807216531</longitude>
 			<latitude>15.53455442694391</latitude>
@@ -1385,7 +1385,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00003D">
-		<name>p43</name>
+		<name>Coastal Access 43</name>
 		<LookAt>
 			<longitude>73.76476239578</longitude>
 			<latitude>15.52853366188267</latitude>
@@ -1404,7 +1404,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00003E">
-		<name>p44</name>
+		<name>Coastal Access 44</name>
 		<LookAt>
 			<longitude>73.76511937016926</longitude>
 			<latitude>15.52940376598191</latitude>
@@ -1423,7 +1423,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA00003F">
-		<name>p45</name>
+		<name>Coastal Access 45</name>
 		<LookAt>
 			<longitude>73.78031662933407</longitude>
 			<latitude>15.54296328104401</latitude>
@@ -1442,7 +1442,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000040">
-		<name>p46</name>
+		<name>Coastal Access 46</name>
 		<LookAt>
 			<longitude>73.78635975450224</longitude>
 			<latitude>15.53788575025183</latitude>
@@ -1461,7 +1461,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000041">
-		<name>p47</name>
+		<name>Coastal Access 47</name>
 		<LookAt>
 			<longitude>73.78531053852386</longitude>
 			<latitude>15.53720329079636</latitude>
@@ -1480,7 +1480,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000042">
-		<name>p48</name>
+		<name>Coastal Access 48</name>
 		<LookAt>
 			<longitude>73.78886132065283</longitude>
 			<latitude>15.53475248698588</latitude>
@@ -1499,7 +1499,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000043">
-		<name>p49</name>
+		<name>Coastal Access 49</name>
 		<LookAt>
 			<longitude>73.7892184705786</longitude>
 			<latitude>15.53949980897603</latitude>
@@ -1518,7 +1518,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000044">
-		<name>p50</name>
+		<name>Coastal Access 50</name>
 		<LookAt>
 			<longitude>73.78564367038902</longitude>
 			<latitude>15.54783480721279</latitude>
@@ -1537,7 +1537,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000045">
-		<name>p51</name>
+		<name>Coastal Access 51</name>
 		<LookAt>
 			<longitude>73.7764950480876</longitude>
 			<latitude>15.54416893414119</latitude>
@@ -1556,7 +1556,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000046">
-		<name>p52</name>
+		<name>Coastal Access 52</name>
 		<LookAt>
 			<longitude>73.78578033649315</longitude>
 			<latitude>15.53939726599498</latitude>
@@ -1575,7 +1575,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000047">
-		<name>p53</name>
+		<name>Coastal Access 53</name>
 		<LookAt>
 			<longitude>73.7853243997414</longitude>
 			<latitude>15.54507815071191</latitude>
@@ -1594,7 +1594,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000048">
-		<name>p54</name>
+		<name>Coastal Access 54</name>
 		<LookAt>
 			<longitude>73.7723357748623</longitude>
 			<latitude>15.53530715231484</latitude>
@@ -1613,7 +1613,7 @@
 		</LineString>
 	</Placemark>
 	<Placemark id="5E8DB252CA000049">
-		<name>p55</name>
+		<name>Coastal Access 55</name>
 		<LookAt>
 			<longitude>73.76830819641199</longitude>
 			<latitude>15.53114902071215</latitude>
@@ -1631,5 +1631,5 @@
 			</coordinates>
 		</LineString>
 	</Placemark>
-</Document>
+<Placemark><name>Candidate emergency access link</name><description>Restricted until field verification</description><LineString><tessellate>1</tessellate><coordinates>73.7605,15.5417,0 73.7544408328661,15.54795654277306,0</coordinates></LineString></Placemark></Document>
 </kml>

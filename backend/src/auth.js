@@ -1,20 +1,28 @@
 const { randomBytes } = require("node:crypto");
+
+// Operator sessions are intentionally short-lived and stored only in memory.
 const sessions = new Map();
-const cookieName = "sws_operator";
+const COOKIE_NAME = "sws_operator";
+
+/** Read the operator token from the request's Cookie header. */
 function readCookie(req) {
   return (req.headers.cookie || "")
     .split(";")
-    .map((v) => v.trim())
-    .find((v) => v.startsWith(cookieName + "="))
-    ?.slice(cookieName.length + 1);
+    .map((value) => value.trim())
+    .find((value) => value.startsWith(`${COOKIE_NAME}=`))
+    ?.slice(COOKIE_NAME.length + 1);
 }
+
+/** Set or clear the secure, server-only operator cookie. */
 function setCookie(res, token, clear = false) {
-  const prod = process.env.NODE_ENV === "production";
+  const isProduction = process.env.NODE_ENV === "production";
   res.setHeader(
     "Set-Cookie",
-    `${cookieName}=${token}; HttpOnly; Path=/api; SameSite=${prod ? "None" : "Lax"}; Max-Age=${clear ? 0 : 3600}${prod ? "; Secure" : ""}`,
+    `${COOKIE_NAME}=${token}; HttpOnly; Path=/api; SameSite=${isProduction ? "None" : "Lax"}; Max-Age=${clear ? 0 : 3600}${isProduction ? "; Secure" : ""}`,
   );
 }
+
+/** Register login, session inspection, and logout routes on the Express app. */
 function installAuth(app, pool) {
   app.post("/api/auth/login", async (req, res) => {
     if (
@@ -22,15 +30,19 @@ function installAuth(app, pool) {
       typeof req.body.password !== "string" ||
       req.body.email.length > 254 ||
       req.body.password.length > 256
-    )
+    ) {
       return res
         .status(400)
         .json({ error: "Email and password are required." });
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY)
+    }
+
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
       return res.status(503).json({
         error:
           "Operator authentication is not configured. Use the clearly labelled demo console.",
       });
+    }
+
     try {
       const response = await fetch(
         `${process.env.SUPABASE_URL}/auth/v1/token?grant_type=password`,
@@ -48,23 +60,28 @@ function installAuth(app, pool) {
         },
       );
       const result = await response.json();
-      if (!response.ok)
+      if (!response.ok) {
         return res
           .status(401)
           .json({ error: "Sign-in failed. Check your credentials." });
+      }
+
       let role = result.user?.app_metadata?.role;
       if (pool) {
-        const r = await pool.query(
+        const roleResult = await pool.query(
           "SELECT role FROM sws_operator_roles WHERE user_id=$1",
           [result.user.id],
         );
-        role = r.rows[0]?.role || role;
+        role = roleResult.rows[0]?.role || role;
       }
+
       role = ["authority", "rescue_team"].includes(role) ? role : "tourist";
-      if (req.body.role === "admin" && role === "tourist")
+      if (req.body.role === "admin" && role === "tourist") {
         return res
           .status(403)
           .json({ error: "This account does not have administrator access." });
+      }
+
       const token = randomBytes(32).toString("hex");
       sessions.set(token, {
         id: result.user.id,
@@ -87,14 +104,17 @@ function installAuth(app, pool) {
         .json({ error: "Operator sign-in is currently unavailable." });
     }
   });
+
   app.get("/api/auth/me", (req, res) => {
-    const s = getUser(req);
-    if (!s || s.expires < Date.now())
+    const user = getUser(req);
+    if (!user || user.expires < Date.now()) {
       return res
         .status(401)
         .json({ error: "Sign in to access the operator console." });
-    res.json({ user: s });
+    }
+    res.json({ user });
   });
+
   app.post("/api/auth/logout", (req, res) => {
     sessions.delete(
       req.headers.authorization?.replace(/^Bearer /, "") || readCookie(req),
@@ -103,19 +123,26 @@ function installAuth(app, pool) {
     res.json({ signed_out: true });
   });
 }
+
+/** Express middleware that limits a route to authority or rescue-team accounts. */
 function requireOperator(req, res, next) {
-  const s = getUser(req);
-  if (!s || s.expires < Date.now())
+  const user = getUser(req);
+  if (!user || user.expires < Date.now()) {
     return res.status(401).json({ error: "Operator authentication required." });
-  if (!["authority", "rescue_team"].includes(s.role))
+  }
+  if (!["authority", "rescue_team"].includes(user.role)) {
     return res.status(403).json({ error: "Admin access required." });
-  req.operator = s;
+  }
+  req.operator = user;
   next();
 }
+
+/** Resolve a non-expired operator from either bearer authentication or cookies. */
 function getUser(req) {
   const token =
     req.headers.authorization?.replace(/^Bearer /, "") || readCookie(req);
-  const s = sessions.get(token);
-  return s && s.expires > Date.now() ? s : null;
+  const user = sessions.get(token);
+  return user && user.expires > Date.now() ? user : null;
 }
+
 module.exports = { installAuth, requireOperator, getUser };

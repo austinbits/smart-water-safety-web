@@ -1,3 +1,4 @@
+/** Create a fresh, isolated demonstration workspace. */
 export function initialState() {
   return {
     version: 1,
@@ -32,6 +33,10 @@ export function initialState() {
     ],
   };
 }
+/**
+ * Validate and apply one user action without mutating the previous state.
+ * Event IDs ensure the same retried action is never applied twice.
+ */
 export function applyAction(
   previous,
   action,

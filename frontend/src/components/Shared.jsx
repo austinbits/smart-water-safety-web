@@ -12,8 +12,10 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import {useAuth} from "../store/auth-context";
+import { useAuth } from "../store/auth-context";
 import { useWater } from "../store/water-context";
+
+/** Let the user switch between the three prepared pilot locations. */
 export function SiteSwitcher() {
   const { manifest, siteId, setSiteId } = useWater();
   const icons = { beach: Waves, river: Waypoints, waterfall: Mountain };
@@ -44,6 +46,8 @@ export function SiteSwitcher() {
     </div>
   );
 }
+
+/** Standard title area shared by every application page. */
 export function PageHeading({ eyebrow, title, description, children }) {
   return (
     <div className="page-heading">
@@ -56,6 +60,8 @@ export function PageHeading({ eyebrow, title, description, children }) {
     </div>
   );
 }
+
+/** Control the one-minute anonymized movement replay shown to operators. */
 export function ReplayBar() {
   const { frame, setFrame, playing, setPlaying, people } = useWater();
   return (
@@ -99,11 +105,13 @@ export function ReplayBar() {
     </div>
   );
 }
+
+/** Display the common safety and provenance note at the bottom of pages. */
 export function Footer() {
-  const {admin}=useAuth();
+  const { admin } = useAuth();
   return (
     <footer className="page-footer">
-      <Link to={admin?"/data":"/forecast"}>
+      <Link to={admin ? "/data" : "/forecast"}>
         <ShieldCheck size={12} /> Source-mapped geography · clearly labelled
         demo data <ArrowUpRight size={12} />
       </Link>
@@ -111,6 +119,8 @@ export function Footer() {
     </footer>
   );
 }
+
+/** Render a small semantic status label using the requested color value. */
 export function Badge({ value, children }) {
   return (
     <span className={`pill ${value || ""}`}>
@@ -125,6 +135,8 @@ export function Badge({ value, children }) {
     </span>
   );
 }
+
+/** Accessible native dialog that opens and closes with its React state. */
 export function Modal({ title, onClose, children }) {
   const ref = useRef(null),
     closeRef = useRef(onClose),
@@ -177,6 +189,8 @@ export function Modal({ title, onClose, children }) {
     </dialog>
   );
 }
+
+/** Allow demo operators to switch between baseline and danger simulations. */
 export function ScenarioControl() {
   const { siteId, scenario, dispatch, notify } = useWater();
   return (
@@ -202,6 +216,8 @@ export function ScenarioControl() {
     </div>
   );
 }
+
+/** Draw a lightweight SVG line chart without adding a chart dependency. */
 export function Chart({
   values,
   color = "#138e89",
@@ -210,23 +226,32 @@ export function Chart({
   threshold = null,
   label = "Metric history",
 }) {
-  const valid = values.filter(Number.isFinite);
-  if (!valid.length)
+  const validValues = values.filter(Number.isFinite);
+  if (!validValues.length) {
     return <div className="empty-chart">No readings available</div>;
-  const max = Math.max(...valid, threshold || 0, 1) * 1.12,
-    min = Math.min(0, ...valid),
-    x = (i) => 10 + (i * 300) / Math.max(values.length - 1, 1),
-    y = (v) => height - 12 - ((v - min) / (max - min)) * (height - 22);
+  }
+
+  // Convert data values into positions inside the fixed 320-pixel view box.
+  const maximum = Math.max(...validValues, threshold || 0, 1) * 1.12;
+  const minimum = Math.min(0, ...validValues);
+  const xPosition = (index) =>
+    10 + (index * 300) / Math.max(values.length - 1, 1);
+  const yPosition = (value) =>
+    height - 12 - ((value - minimum) / (maximum - minimum)) * (height - 22);
+
+  // Missing readings split a line into separate segments instead of inventing data.
   const segments = [];
-  let current = [];
-  values.forEach((v, i) => {
-    if (Number.isFinite(v)) current.push(`${x(i)},${y(v)}`);
-    else if (current.length) {
-      segments.push(current);
-      current = [];
+  let currentSegment = [];
+  values.forEach((value, index) => {
+    if (Number.isFinite(value)) {
+      currentSegment.push(`${xPosition(index)},${yPosition(value)}`);
+    } else if (currentSegment.length) {
+      segments.push(currentSegment);
+      currentSegment = [];
     }
   });
-  if (current.length) segments.push(current);
+  if (currentSegment.length) segments.push(currentSegment);
+
   return (
     <svg
       role="img"
@@ -235,13 +260,13 @@ export function Chart({
       className="chart"
       style={{ height }}
     >
-      {[0.25, 0.5, 0.75].map((v) => (
+      {[0.25, 0.5, 0.75].map((fraction) => (
         <line
-          key={v}
+          key={fraction}
           x1="8"
           x2="312"
-          y1={height * v}
-          y2={height * v}
+          y1={height * fraction}
+          y2={height * fraction}
           stroke="currentColor"
           opacity=".07"
         />
@@ -250,37 +275,37 @@ export function Chart({
         <line
           x1="8"
           x2="312"
-          y1={y(threshold)}
-          y2={y(threshold)}
+          y1={yPosition(threshold)}
+          y2={yPosition(threshold)}
           stroke="#b57d39"
           strokeDasharray="4 4"
         />
       )}
       {bars
         ? values.map(
-            (v, i) =>
-              Number.isFinite(v) && (
+            (value, index) =>
+              Number.isFinite(value) && (
                 <rect
-                  key={i}
-                  x={x(i) - 3}
-                  y={y(v)}
+                  key={index}
+                  x={xPosition(index) - 3}
+                  y={yPosition(value)}
                   width={Math.max(2, 240 / values.length)}
-                  height={height - 12 - y(v)}
+                  height={height - 12 - yPosition(value)}
                   rx="2"
                   fill={color}
                   opacity=".75"
                 />
               ),
           )
-        : segments.map((s, i) => (
-            <g key={i}>
+        : segments.map((segment, index) => (
+            <g key={index}>
               <polygon
-                points={`${s[0].split(",")[0]},${height - 12} ${s.join(" ")} ${s.at(-1).split(",")[0]},${height - 12}`}
+                points={`${segment[0].split(",")[0]},${height - 12} ${segment.join(" ")} ${segment.at(-1).split(",")[0]},${height - 12}`}
                 fill={color}
                 opacity=".08"
               />
               <polyline
-                points={s.join(" ")}
+                points={segment.join(" ")}
                 fill="none"
                 stroke={color}
                 strokeWidth="2.5"

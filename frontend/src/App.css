@@ -1,3 +1,6 @@
+/* -------------------------------------------------------------------------- */
+/* Application shell: fixed desktop navigation and the main content column.   */
+/* -------------------------------------------------------------------------- */
 .app-shell {
   min-height: 100vh;
 }
@@ -165,6 +168,8 @@
   font-size: 0.55rem;
   letter-spacing: 0.7px;
 }
+
+/* Top bar and reusable page heading controls. */
 .app-main {
   margin-left: 238px;
 }
@@ -357,6 +362,8 @@
   margin-left: auto;
   color: var(--teal);
 }
+
+/* Explore-page layout and the shared map container. */
 .explore-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 312px;
@@ -708,6 +715,8 @@
   border-left: 1px solid var(--line);
   padding-left: 13px;
 }
+
+/* Global feedback: footer notes, toast messages, and connection warnings. */
 .page-footer {
   display: flex;
   justify-content: space-between;
@@ -776,11 +785,15 @@
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
+
+/* A small loading animation used while pages and data are being prepared. */
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
+
+/* MapLibre's generated controls live outside React, so they are styled here. */
 .maplibregl-popup-content {
   font-family: "DM Sans", sans-serif;
   padding: 14px !important;
@@ -908,6 +921,8 @@
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
 }
+
+/* Responsive breakpoints progressively replace the sidebar with mobile tabs. */
 @media (min-width: 1600px) {
   .map-wrap {
     height: 565px;

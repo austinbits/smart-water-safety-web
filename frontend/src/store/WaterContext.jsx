@@ -1,76 +1,107 @@
 import { useEffect, useMemo, useRef, useState, useEffectEvent } from "react";
-import { api, storage } from "../services/api";
+
 import { initialState } from "../../../shared/demo.mjs";
-import {
-  riskFor,
-  dynamicFeatures,
-  classifyPosition,
-  distance,
-} from "../../../shared/engine.mjs";
-import { Context } from "./water-context";
-import { zoneForecast } from "../../../shared/navigation.mjs";
+import { distance, riskFor } from "../../../shared/engine.mjs";
+import { API_URL, api, storage } from "../services/api";
 import { useAuth } from "./auth-context";
+import { Context } from "./water-context";
+import {
+  buildDemoVisitors,
+  buildDisplayFeatures,
+  buildVisiblePeople,
+  CLOSED_INCIDENT_STATUSES,
+  findReplayStart,
+  getEmergencyDemoPosition,
+  getMapPosition,
+  getPositionZone,
+  getTimelineSample,
+} from "./water-helpers";
+
+/**
+ * Own all water-safety workspace state and expose it to page components.
+ * Pages consume this provider instead of repeating networking, GPS, replay, and
+ * emergency logic independently.
+ */
 export function WaterProvider({ children }) {
   const { user, admin } = useAuth();
+
+  // Data loaded from static files and the backend.
   const [replay, setReplay] = useState([]);
   const [syncedAt, setSyncedAt] = useState(null);
-  const [manifest, setManifest] = useState(null),
-    [bundles, setBundles] = useState({}),
-    [loadError, setLoadError] = useState("");
-  const [siteId, setSiteId] = useState(() => storage.get("site", "calangute")),
-    [state, setState] = useState(() => initialState());
-  const [online, setOnline] = useState(navigator.onLine),
-    [connection, setConnection] = useState("connecting"),
-    [retry] = useState(0);
-  const [frame, setFrame] = useState(0),
-    [playing, setPlaying] = useState(false),
-    [toast, setToast] = useState("");
-  const [location, setLocation] = useState(null),
-    [tracking, setTracking] = useState(false),
-    [trace, setTrace] = useState([]);
+  const [manifest, setManifest] = useState(null);
+  const [bundles, setBundles] = useState({});
+  const [loadError, setLoadError] = useState("");
+  const [state, setState] = useState(() => initialState());
+
+  // User selections and playback controls.
+  const [siteId, setSiteId] = useState(() => storage.get("site", "calangute"));
+  const [frame, setFrame] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [toast, setToast] = useState("");
+
+  // Browser and connection capabilities.
+  const [online, setOnline] = useState(navigator.onLine);
+  const [connection, setConnection] = useState("connecting");
+  const [offlineDemo, setOfflineDemo] = useState(false);
+  const [location, setLocation] = useState(null);
+  const [tracking, setTracking] = useState(false);
+  const [trace, setTrace] = useState([]);
+
+  // Values persisted in browser storage survive page reloads.
   const [savedSites, setSavedSites] = useState(() =>
     storage.get("offline-sites", []),
   );
-  const [offlineDemo, setOfflineDemo] = useState(false),
-    [pending] = useState(() => storage.get("pending", []));
+  const [pending] = useState(() => storage.get("pending", []));
   const [emergency, setEmergency] = useState(() =>
-      storage.get("emergency", null),
-    ),
-    [now, setNow] = useState(Date.now());
-  const escalation = useRef(null);
+    storage.get("emergency", null),
+  );
+  const [now, setNow] = useState(Date.now());
+
+  // Refs hold mutable integration state without causing extra rendering.
+  const escalationId = useRef(null);
   const lastPositionSent = useRef(0);
-  const watch = useRef(null),
-    stateRef = useRef(state),
-    pendingRef = useRef(pending),
-    actionChain = useRef(Promise.resolve());
+  const geolocationWatchId = useRef(null);
+  const stateRef = useRef(state);
+  const pendingRef = useRef(pending);
+  const actionChain = useRef(Promise.resolve());
+
   stateRef.current = state;
   pendingRef.current = pending;
+
+  // Load the compact public bundles that make the site usable offline.
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const r = await fetch("/data/manifest.json");
-        if (!r.ok) throw new Error("Data manifest could not be loaded.");
-        const m = await r.json();
+        const response = await fetch("/data/manifest.json");
+        if (!response.ok) {
+          throw new Error("Data manifest could not be loaded.");
+        }
+
+        const loadedManifest = await response.json();
         const values = await Promise.all(
-          m.sites.map(async (s) => {
-            const r = await fetch(`/data/${s.id}.json`);
-            if (!r.ok) throw new Error(`${s.name} data could not be loaded.`);
-            return [s.id, await r.json()];
+          loadedManifest.sites.map(async (siteSummary) => {
+            const siteResponse = await fetch(`/data/${siteSummary.id}.json`);
+            if (!siteResponse.ok) {
+              throw new Error(`${siteSummary.name} data could not be loaded.`);
+            }
+            return [siteSummary.id, await siteResponse.json()];
           }),
         );
         if (active) {
-          setManifest(m);
+          setManifest(loadedManifest);
           setBundles(Object.fromEntries(values));
         }
-      } catch (e) {
-        if (active) setLoadError(e.message);
+      } catch (error) {
+        if (active) setLoadError(error.message);
       }
     })();
     return () => {
       active = false;
     };
   }, []);
+
+  // Keep small pieces of user state in local storage.
   useEffect(() => {
     storage.set("site", siteId);
   }, [siteId]);
@@ -90,8 +121,10 @@ export function WaterProvider({ children }) {
     const timer = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(timer);
   }, [emergency]);
+
+  // Escalate a completed countdown exactly once, even if React renders again.
   const escalate = useEffectEvent((current) => {
-    escalation.current = current.id;
+    escalationId.current = current.id;
     dispatch(
       "sos",
       {
@@ -110,48 +143,57 @@ export function WaterProvider({ children }) {
             : e,
         ),
       )
-      .catch((e) => {
-        notify(e.message);
-        escalation.current = null;
+      .catch((error) => {
+        notify(error.message);
+        escalationId.current = null;
       });
   });
   useEffect(() => {
     if (
       emergency?.status !== "countdown" ||
       now < emergency.deadline ||
-      escalation.current === emergency.id
-    )
+      escalationId.current === emergency.id
+    ) {
       return;
+    }
     escalate(emergency);
   }, [now, emergency]);
+
+  // If a browser-restored countdown was cancelled, reconcile it with the server.
   const reconcileCancelled = useEffectEvent((current) =>
     dispatch(
       "cancel",
       { id: current.id, site: current.site },
       `${current.id}-cancel`,
-    ).catch((e) => notify(e.message)),
+    ).catch((error) => notify(error.message)),
   );
   useEffect(() => {
     if (
       emergency?.status === "cancelled" &&
       state.incidents.some(
-        (i) =>
-          i.id === emergency.id &&
-          !["resolved", "cancelled"].includes(i.status),
+        (incident) =>
+          incident.id === emergency.id &&
+          !CLOSED_INCIDENT_STATUSES.has(incident.status),
       )
-    )
+    ) {
       reconcileCancelled(emergency);
+    }
   }, [state, emergency]);
+
+  // Mirror the browser's current network status in application state.
   useEffect(() => {
-    const on = () => setOnline(true),
-      off = () => setOnline(false);
-    window.addEventListener("online", on);
-    window.addEventListener("offline", off);
+    const handleOnline = () => setOnline(true);
+    const handleOffline = () => setOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
     return () => {
-      window.removeEventListener("online", on);
-      window.removeEventListener("offline", off);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  // Advance the forecast replay while the user has playback enabled.
   useEffect(() => {
     if (!playing) return;
     const timer = setInterval(
@@ -174,31 +216,57 @@ export function WaterProvider({ children }) {
   }, [toast]);
   useEffect(
     () => () => {
-      if (watch.current !== null)
-        navigator.geolocation.clearWatch(watch.current);
+      if (geolocationWatchId.current !== null) {
+        navigator.geolocation.clearWatch(geolocationWatchId.current);
+      }
     },
     [],
   );
+
+  // Receive immediate room updates. The secure workspace cookie lets the
+  // browser authenticate this stream without placing a secret in the URL.
   useEffect(() => {
-    let active = true,
-      timer;
+    const events = new EventSource(`${API_URL}/api/workspace/events`, {
+      withCredentials: true,
+    });
+    events.addEventListener("ready", () => setConnection("realtime"));
+    events.addEventListener("workspace", (event) => {
+      try {
+        const nextState = JSON.parse(event.data);
+        stateRef.current = nextState;
+        setState(nextState);
+        setConnection("realtime");
+        setSyncedAt(Date.now());
+      } catch {
+        // A malformed event is ignored; the fallback poll repairs state.
+      }
+    });
+    return () => events.close();
+  }, [user.id]);
+
+  // Slow polling is a recovery path if a proxy or browser blocks event streams.
+  useEffect(() => {
+    let active = true;
+    let timer;
+
     async function poll() {
       try {
-        const d = await api("/workspace/state");
+        const response = await api("/workspace/state");
         if (active) {
-          setState(d.state);
-          stateRef.current = d.state;
-          setConnection(d.storage);
+          setState(response.state);
+          stateRef.current = response.state;
+          setConnection(response.storage);
           setSyncedAt(Date.now());
         }
-      } catch (e) {
+      } catch (error) {
         if (active) {
           setConnection("device");
-          if (e.status === 401)
+          if (error.status === 401) {
             setLoadError("Session expired. Sign out and sign in again.");
+          }
         }
       } finally {
-        if (active) timer = setTimeout(poll, 3000);
+        if (active) timer = setTimeout(poll, 15000);
       }
     }
     poll();
@@ -206,128 +274,85 @@ export function WaterProvider({ children }) {
       active = false;
       clearTimeout(timer);
     };
-  }, [user.id, retry]);
+  }, [user.id]);
+
+  // Administrators can replay anonymized demo movement for the selected site.
   useEffect(() => {
     let active = true;
-    if (admin && user.demo)
+
+    if (admin && user.demo) {
       api("/workspace/replay/" + siteId)
-        .then((d) => {
-          if (active) setReplay(d);
+        .then((loadedReplay) => {
+          if (active) setReplay(loadedReplay);
         })
         .catch(() => {});
+    }
+
     return () => {
       active = false;
     };
   }, [siteId, admin, user.demo]);
+
+  /** Serialize state-changing requests so rapid clicks cannot arrive out of order. */
   function dispatch(action, payload = {}, eventId = crypto.randomUUID()) {
     const operation = actionChain.current.then(async () => {
-      const d = await api("/workspace/action", {
+      const response = await api("/workspace/action", {
         method: "POST",
         body: JSON.stringify({ action, payload, eventId }),
       });
-      stateRef.current = d.state;
-      setState(d.state);
-      setConnection(d.storage);
+      stateRef.current = response.state;
+      setState(response.state);
+      setConnection(response.storage);
       setSyncedAt(Date.now());
-      return d.state;
+      return response.state;
     });
     actionChain.current = operation.catch(() => {});
     return operation;
   }
-  const site = bundles[siteId] || bundles.calangute,
-    scenario = state.scenarios[siteId] || "normal";
-  const baselineIndex = site
-    ? Math.max(
-        0,
-        site.timeline.findIndex((t) => t.timestamp.startsWith("2026-09-07T12")),
-      )
-    : 0;
-  const sample =
-    site?.timeline[
-      Math.min(site.timeline.length - 1, baselineIndex + Math.floor(frame / 3))
-    ];
+  // Derive map-ready values from source data instead of storing duplicate state.
+  const site = bundles[siteId] || bundles.calangute;
+  const scenario = state.scenarios[siteId] || "normal";
+  const replayStart = findReplayStart(site);
+  const sample = getTimelineSample(site, replayStart, frame);
   const risk = useMemo(
     () => (site ? riskFor(site, sample, scenario) : null),
     [site, sample, scenario],
   );
-  const features = useMemo(() => {
-    if (!site) return null;
-    const base = dynamicFeatures(site, scenario);
-    const zones = zoneForecast(
-      site,
-      sample,
-      site.timeline[Math.max(0, baselineIndex + Math.floor(frame / 3) - 1)],
-      scenario,
-    );
-    return {
-      ...base,
-      features: base.features.map((f) => {
-        const z = zones.find((z) => z.id === f.properties.id);
-        return z
-          ? {
-              ...f,
-              properties: {
-                ...f.properties,
-                display_level: z.level,
-                rising: z.rising,
-                ...(f.properties.category === "hazard"
-                  ? { level: z.level }
-                  : {}),
-              },
-            }
-          : f;
+  const features = useMemo(
+    () =>
+      buildDisplayFeatures({
+        frame,
+        replayStart,
+        sample,
+        scenario,
+        site,
       }),
-    };
-  }, [site, scenario, sample, baselineIndex, frame]);
-  const names = [
-    "Aarav",
-    "Diya",
-    "Ishaan",
-    "Meera",
-    "Rohan",
-    "Ananya",
-    "Kabir",
-    "Nisha",
-  ];
-  const simulated = (admin && user.demo ? replay[frame] || [] : []).map(
-    (p, i) => ({
-      ...p,
-      name: names[i % names.length] + " (demo)",
-      age: 19 + (i % 38),
-      source: "simulation",
-    }),
+    [frame, replayStart, sample, scenario, site],
   );
-  const people = admin
-    ? [
-        ...simulated,
-        ...(state.visitors || []).filter((v) => v.site === siteId),
-        ...state.teams
-          .filter((t) => t.site === siteId && Number.isFinite(t.lng))
-          .map((t) => ({ ...t, role: "team" })),
-      ]
-    : state.teams
-        .filter((t) => t.site === siteId && Number.isFinite(t.lng))
-        .map((t) => ({ ...t, role: "team" }));
-  const demoPosition = null;
-  const position = location
-    ? [location.lng, location.lat]
-    : demoPosition
-      ? [demoPosition.lng, demoPosition.lat]
-      : site?.planning_start || site?.center;
-  const zone = features
-    ? classifyPosition(position, features.features)
-    : "unknown";
-  const notify = (m) => setToast(m);
+  const replayVisitors = buildDemoVisitors(replay, frame, admin && user.demo);
+  const people = buildVisiblePeople({
+    admin,
+    replayVisitors,
+    siteId,
+    state,
+  });
+  const position = getMapPosition(location, site);
+  const zone = getPositionZone(position, features);
+
+  /** Show a temporary message without exposing toast implementation to pages. */
+  const notify = (message) => setToast(message);
+
+  /** Request one location or begin a consented route trace. */
   function locate(record = false) {
     if (!navigator.geolocation) {
       notify("Location is not supported by this browser.");
       return;
     }
-    const success = (p) => {
+    const handleSuccess = (browserPosition) => {
       const loc = {
-        lat: p.coords.latitude,
-        lng: p.coords.longitude,
-        accuracy: p.coords.accuracy,
+        lat: browserPosition.coords.latitude,
+        lng: browserPosition.coords.longitude,
+        accuracy: browserPosition.coords.accuracy,
         timestamp: new Date().toISOString(),
       };
       setLocation(loc);
@@ -338,111 +363,128 @@ export function WaterProvider({ children }) {
           site: siteId,
           accuracy_m: loc.accuracy,
           consent: true,
-        }).catch((e) => notify(e.message));
+        }).catch((error) => notify(error.message));
       }
-      if (record)
-        setTrace((ps) => {
-          const last = ps.at(-1);
+      if (record) {
+        setTrace((positions) => {
+          const last = positions.at(-1);
           return !last || distance(last, [loc.lng, loc.lat]) > 3
-            ? [...ps, [loc.lng, loc.lat]].slice(-10000)
-            : ps;
+            ? [...positions, [loc.lng, loc.lat]].slice(-10000)
+            : positions;
         });
+      }
     };
-    const error = (e) => {
+
+    const handleError = (error) => {
       notify(
-        e.code === 1
+        error.code === 1
           ? "Location permission was declined. You can continue with the demo position."
           : "GPS is unavailable. Try again outdoors.",
       );
       if (record) stopTrace();
     };
+
     if (record || !admin) {
       setTracking(record);
       setTrace([]);
-      if (watch.current !== null)
-        navigator.geolocation.clearWatch(watch.current);
-      watch.current = navigator.geolocation.watchPosition(success, error, {
+      if (geolocationWatchId.current !== null) {
+        navigator.geolocation.clearWatch(geolocationWatchId.current);
+      }
+      geolocationWatchId.current = navigator.geolocation.watchPosition(
+        handleSuccess,
+        handleError,
+        {
+          enableHighAccuracy: true,
+          maximumAge: 2000,
+          timeout: 15000,
+        },
+      );
+    } else {
+      navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
         enableHighAccuracy: true,
-        maximumAge: 2000,
         timeout: 15000,
       });
-    } else
-      navigator.geolocation.getCurrentPosition(success, error, {
-        enableHighAccuracy: true,
-        timeout: 15000,
-      });
+    }
   }
+
+  /** Stop the browser location watcher without deleting the collected trace. */
   function stopTrace() {
-    if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
-    watch.current = null;
+    if (geolocationWatchId.current !== null) {
+      navigator.geolocation.clearWatch(geolocationWatchId.current);
+    }
+    geolocationWatchId.current = null;
     setTracking(false);
   }
+
+  /** Start a labelled emergency drill; real emergency services are never contacted. */
   function startEmergency(level = "high") {
-    const closed = stateRef.current.incidents.some(
-      (i) =>
-        i.id === emergency?.id && ["resolved", "cancelled"].includes(i.status),
+    const previousEmergencyIsClosed = stateRef.current.incidents.some(
+      (incident) =>
+        incident.id === emergency?.id &&
+        CLOSED_INCIDENT_STATUSES.has(incident.status),
     );
     if (
       emergency &&
       ["countdown", "active"].includes(emergency.status) &&
-      !closed
+      !previousEmergencyIsClosed
     ) {
       notify(
         "An emergency drill is already active. Finish or cancel it first.",
       );
       return;
     }
-    const hazard = features.features.find(
-      (f) =>
-        f.properties.category === "hazard" && f.geometry.type === "Polygon",
-    );
-    const ring = hazard?.geometry.coordinates[0];
-    const demo = ring
-      ? ring.reduce(
-          (a, p) => [a[0] + p[0] / ring.length, a[1] + p[1] / ring.length],
-          [0, 0],
-        )
-      : site.center;
-    const record = {
+
+    const demoPosition = getEmergencyDemoPosition(features, site.center);
+    const emergencyRecord = {
       id: crypto.randomUUID(),
       site: siteId,
       zone: level,
-      position: demo,
+      position: demoPosition,
       deadline: Date.now() + 30000,
       status: level === "low" ? "awareness" : "countdown",
     };
-    setEmergency(record);
+    setEmergency(emergencyRecord);
     setNow(Date.now());
-    escalation.current = null;
+    escalationId.current = null;
   }
+
+  /** Cancel either a visible server incident or a countdown that never escalated. */
   async function cancelEmergency() {
     if (!emergency) return;
+
     const current = emergency;
     setEmergency({ ...current, status: "cancelled" });
     storage.set("emergency", { ...current, status: "cancelled" });
     await actionChain.current;
+
     if (
       stateRef.current.incidents.some(
-        (i) =>
-          i.id === current.id && !["resolved", "cancelled"].includes(i.status),
+        (incident) =>
+          incident.id === current.id &&
+          !CLOSED_INCIDENT_STATUSES.has(incident.status),
       )
-    )
+    ) {
       await dispatch(
         "cancel",
         { id: current.id, site: current.site },
         `${current.id}-cancel`,
       );
-    else
+    } else {
       await dispatch(
         "cancel_countdown",
         { site: current.site },
         `${current.id}-cancel-countdown`,
       );
+    }
   }
+
+  /** Cache the current site's essential files for limited offline use. */
   async function saveOffline() {
     try {
-      if (!("caches" in window))
+      if (!("caches" in window)) {
         throw new Error("Offline storage requires HTTPS or localhost.");
+      }
+
       const cache = await caches.open("sws-offline-v1");
       await cache.addAll([
         "/",
@@ -452,23 +494,25 @@ export function WaterProvider({ children }) {
       ]);
       const paths = performance
         .getEntriesByType("resource")
-        .map((r) => r.name)
+        .map((resource) => resource.name)
         .filter(
-          (u) =>
-            u.startsWith(window.location.origin) &&
-            /\.(js|css)(\?|$)|\/src\/|\/node_modules\//.test(u),
+          (url) =>
+            url.startsWith(window.location.origin) &&
+            /\.(js|css)(\?|$)|\/src\/|\/node_modules\//.test(url),
         );
-      await Promise.allSettled(paths.map((u) => cache.add(u)));
+      await Promise.allSettled(paths.map((url) => cache.add(url)));
       const saved = [...new Set([...savedSites, siteId])];
       setSavedSites(saved);
       storage.set("offline-sites", saved);
       notify(
         "Site paths and candidate locations saved. Offline maps use these vector layers; street tiles need internet.",
       );
-    } catch (e) {
-      notify(e.message || "Offline download failed.");
+    } catch (error) {
+      notify(error.message || "Offline download failed.");
     }
   }
+
+  // This is the single public interface pages receive from the provider.
   return (
     <Context.Provider
       value={{

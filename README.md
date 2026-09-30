@@ -1,10 +1,10 @@
-# Smart Water Safety
+# Routes and Safety Map
 
-SIH 2026 prototype for Calangute Beach, Muthathi River and Dudhsagar Falls. Built on the original React/Vite, MapLibre, Express and Supabase/PostGIS project, with the existing Vercel frontend and Render backend.
+This map-focused prototype covers Calangute Beach, Muthathi River, and Dudhsagar Falls. It combines a React/Vite frontend with an Express realtime API and optional PostgreSQL persistence.
 
-## Run locally
+## Local development
 
-Use Node.js 22.12+ (or Node 24). From the repository root:
+Use Node.js 22.12 or newer. From the repository root:
 
 ```sh
 npm ci --prefix backend
@@ -12,38 +12,42 @@ npm ci --prefix frontend
 npm run dev
 ```
 
-Open http://127.0.0.1:5173. Existing local `.env` files are preserved. For a new checkout, copy `backend/.env.example` to `backend/.env` and supply the server-side Supabase values. Without a database, the demo runs using local server storage, with a browser fallback when the API is unavailable.
+Open <http://127.0.0.1:5173>. The API runs on <http://127.0.0.1:5000>.
+
+The demonstration works without a database by using local server storage and a browser fallback. For database-backed operator features, copy `backend/.env.example` to `backend/.env`, add the required values, and run:
 
 ```sh
 npm run migrate
+```
+
+## Quality checks
+
+```sh
 npm test
 npm run lint
 npm run build
 ```
 
-To check component rendering without a browser, run `node scripts/render-check.mjs` from `frontend`. To verify imported database counts, geometry validity and row-level protection, run `node scripts/verify-database.js` from `backend`.
+- `npm test` renders every page, site, and scenario combination.
+- `npm run lint` checks the frontend source.
+- `npm run build` creates the production frontend and offline service worker.
 
-## What works
+## Project structure
 
-- **Explore:** all three original KML maps, mapped pedestrian paths, GPS playback, route selection, location permission, consented trip recording, and offline site downloads.
-- **Forecast:** site-specific metrics, history, now/3-hour/24-hour replay horizons, scenario controls, transparent risk rules, tide references, and on-demand Open-Meteo weather/marine forecasts.
-- **Emergency:** user-started low/medium/high drills, a persistent 30-second SOS timer, cancellation, optional spoken guidance, offline queues, planning routes, zone messages and an explicit 112 dialler link.
-- **Rescue:** isolated demo sessions, real-time Socket.IO updates, same-site team assignment, on-scene/resolution actions, audit export, zone occupancy, crowd layers, bounded last-seen search envelopes, and a reviewed route-contribution workflow.
-- **Data:** 64 original datasets with hashes, sample/full-record inspection, provenance, correction notes, references and byte-identical KML downloads.
-- **Operators:** server-validated Supabase password login with administrator-assigned roles. Operational data is separate from demonstration activity.
+- `frontend/` — React interface, maps, offline data, and public assets.
+- `backend/` — API, authentication, operational workflow, and database migration.
+- `shared/` — deterministic risk, navigation, consensus, and demo-state rules used by both applications.
+- `data/normalized/` — prepared datasets served by the backend data register.
+- `scripts/dev.mjs` — starts the frontend and backend development servers together.
 
-## Data integrity
+## Deployment
 
-All supplied files are archived under `data/source`. All three original KMLs remain byte-for-byte unchanged. Browser layers are derived separately. The archive includes the synthetic rasters and unused rough event feeds; retaining them does not make them observations or activate them as sensors.
+- `vercel.json` builds and serves the frontend from the repository root.
+- `render.yaml` configures the backend service.
+- Backend production secrets belong in the hosting environment, never in the repository.
 
-See [data notes](docs/DATA_QUALITY.md), [deployment instructions](docs/DEPLOYMENT.md), and the [five-minute demo](docs/DEMO.md).
+## Safety scope
 
-The reproducible import is `python scripts/prepare-data.py` (Python 3 with Pillow). It reads the original Downloads folder when available and otherwise the archived originals. Audited topology repairs are saved separately and checked against their original geometry before reuse.
+This is a demonstration system. Synthetic conditions, risk thresholds, crowd counts, rescue teams, and SOS drills are labelled in the interface. Current weather comes from a numerical model, not a local sensor. Routes and refuges require field verification.
 
-## Operational scope
-
-This is a working, integrated hackathon prototype. Synthetic GPS, rainfall events, risk thresholds, crowd counts, rescue teams and SOS drills are labelled throughout. Current weather is a numerical model, not a local water sensor. Missing gauges stay missing. Paths and refuges require field verification.
-
-Official dispatch, SMS/push delivery, rescue-team video transport, a calibrated hydrological model, satellite DEM ingestion and native mobile background location are not connected. The 112 link opens the device dialler; drills do not contact emergency services. Operator sessions currently require sign-in again after a backend restart.
-
-The original repository tracked local environment files. They have been removed from the current Git index, but earlier commits still contain them. Rotate the old database password in Supabase and update the local/Render secret values; `.gitignore` does not erase history.
+The project does not connect to official dispatch, SMS/push delivery, calibrated hydrological models, or native background location. The 112 action opens the device dialler; drills do not contact emergency services.

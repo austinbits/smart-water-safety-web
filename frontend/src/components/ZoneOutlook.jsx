@@ -2,12 +2,21 @@ import { useMemo } from "react";
 import { useWater } from "../store/water-context";
 import { zoneForecast } from "../../../shared/navigation.mjs";
 import { inGeometry } from "../../../shared/engine.mjs";
+
+/** Explain how modeled conditions vary across the selected site's mapped zones. */
 export default function ZoneOutlook({
   sample,
   previous,
   scenario: scenarioOverride,
 }) {
-  const { site, frame, scenario, position, sample: contextSample } = useWater();
+  const {
+    site,
+    frame,
+    scenario,
+    position,
+    people,
+    sample: contextSample,
+  } = useWater();
   const index = Math.min(site.timeline.length - 1, Math.floor(frame / 3));
   const rows = useMemo(
     () =>
@@ -20,6 +29,13 @@ export default function ZoneOutlook({
     [site, sample, contextSample, previous, index, scenario, scenarioOverride],
   );
   const local = rows.filter((r) => inGeometry(position, r.geometry));
+  const highRiskZones = rows.filter((row) => row.level === "high");
+  // Count only displayed simulated/consented positions; this is exposure, not occupancy.
+  const exposedPeople = people.filter((person) =>
+    highRiskZones.some((zone) =>
+      inGeometry([person.lng, person.lat], zone.geometry),
+    ),
+  );
   return (
     <section className="zone-outlook">
       <div className="panel-head">
@@ -33,6 +49,20 @@ export default function ZoneOutlook({
         {local.length
           ? `Your planning position: ${local.map((z) => `${z.name} — ${z.status}`).join(" · ")}`
           : "Your position is outside the mapped hazard polygons. Conditions here are not verified."}
+      </div>
+      <div className="zone-impact" aria-label="Modeled zone impact summary">
+        <div>
+          <strong>{highRiskZones.length}</strong>
+          <span>high-risk mapped areas</span>
+        </div>
+        <div>
+          <strong>{exposedPeople.length}</strong>
+          <span>displayed people inside them</span>
+        </div>
+        <div>
+          <strong>{scenarioOverride || scenario}</strong>
+          <span>active scenario</span>
+        </div>
       </div>
       <div className="zone-grid">
         {rows.map((z) => (

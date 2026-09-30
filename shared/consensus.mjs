@@ -1,6 +1,7 @@
 import { distance, projectOnSegment, lineDistance } from "./engine.mjs";
 
 // A contribution is evidence of path usage, never evidence that a path is safe.
+/** Compare reviewed traces and return route-usage proposals with support counts. */
 export function routeSupport(site, traces) {
   const unique = new Map();
   for (const trace of traces.filter(

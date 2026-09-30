@@ -3,9 +3,17 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { createPool } = require("../src/config/database");
 const { sites, manifest } = require("../src/data");
+
+/**
+ * Create the application tables and upsert the prepared site data.
+ * One transaction guarantees that a failed import leaves the database unchanged.
+ */
 async function migrate() {
   const pool = createPool();
-  if (!pool) throw new Error("DATABASE_URL required.");
+  if (!pool) {
+    throw new Error("DATABASE_URL required.");
+  }
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -24,7 +32,7 @@ async function migrate() {
           site.type,
           site.region,
           ...site.center,
-          manifest.sites.find((s) => s.id === site.id),
+          manifest.sites.find((siteSummary) => siteSummary.id === site.id),
         ],
       );
       await client.query(
@@ -52,15 +60,16 @@ async function migrate() {
     console.log(
       "Additive migration complete: 3 sites, mapped features, forecast samples and 64 source records. Original tables unchanged.",
     );
-  } catch (e) {
+  } catch (error) {
     await client.query("ROLLBACK");
-    throw e;
+    throw error;
   } finally {
     client.release();
     await pool.end();
   }
 }
-migrate().catch((e) => {
-  console.error("Migration failed:", e.code || e.message);
+
+migrate().catch((error) => {
+  console.error("Migration failed:", error.code || error.message);
   process.exit(1);
 });

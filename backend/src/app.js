@@ -8,10 +8,13 @@ const { DemoStore, hash } = require("./store");
 const { sites, manifest, siteById, root } = require("./data");
 const { getWeather } = require("./weather");
 const { installAuth, requireOperator } = require("./auth");
+
+/** Build the HTTP and real-time application without binding a network port. */
 async function createServer({ pool = null, memory = false } = {}) {
   const { initialState, applyAction } = await import("../../shared/demo.mjs");
-  const { riskFor, dynamicFeatures, planRoute, classifyPosition } =
+  const { riskFor, dynamicFeatures, classifyPosition } =
     await import("../../shared/engine.mjs");
+  const { alternatives } = await import("../../shared/navigation.mjs");
   const store = new DemoStore(pool, initialState, applyAction, { memory });
   await store.init();
   const app = express();
@@ -24,6 +27,8 @@ async function createServer({ pool = null, memory = false } = {}) {
     .split(",")
     .map((v) => v.trim());
   const allowed = (o) => !o || origins.includes(o);
+
+  // Browser security and cross-origin policy apply before every route.
   app.use(
     cors({
       origin: (origin, cb) =>
@@ -36,6 +41,11 @@ async function createServer({ pool = null, memory = false } = {}) {
   app.use((req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader(
+      "Permissions-Policy",
+      "camera=(), microphone=(), geolocation=(self)",
+    );
     res.setHeader("Cache-Control", "no-store");
     if (
       ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) &&
@@ -45,6 +55,8 @@ async function createServer({ pool = null, memory = false } = {}) {
     next();
   });
   app.use(express.json({ limit: "1mb" }));
+
+  // A small in-memory limiter protects public and login endpoints from bursts.
   const buckets = new Map();
   app.use("/api", (req, res, next) => {
     const key = `${req.ip}:${req.path.startsWith("/auth/login") ? "login" : "api"}`;
@@ -68,6 +80,7 @@ async function createServer({ pool = null, memory = false } = {}) {
       cors: { origin: (o, cb) => cb(null, allowed(o)), credentials: true },
       maxHttpBufferSize: 100000,
     });
+  // Socket clients must prove they own a current demonstration workspace.
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth.demoToken;
@@ -82,21 +95,33 @@ async function createServer({ pool = null, memory = false } = {}) {
   io.on("connection", (socket) => {
     socket.join(hash(socket.data.token));
   });
-  app.get("/api/health", (req, res) =>
-    res.json({
-      status: "ok",
-      version: "2.0.0",
-      storage: store.mode,
-      sites: Object.keys(sites).length,
-      datasets: manifest.files.length,
+
+  // Install the operational workspace before exposing readiness information.
+  const { requireAdmin, repository } =
+    await require("./operations").installOperations(app, {
+      pool,
+      memory,
+      sites,
+    });
+  app.get("/api/health", async (req, res) => {
+    const checks = {
+      demo_storage: await store.health().catch(() => "unavailable"),
+      workspace_storage: await repository.health().catch(() => "unavailable"),
+      prepared_sites: Object.keys(sites).length,
+      registered_datasets: manifest.files.length,
+    };
+    const healthy =
+      checks.demo_storage !== "unavailable" &&
+      checks.workspace_storage !== "unavailable" &&
+      checks.prepared_sites > 0;
+    res.status(healthy ? 200 : 503).json({
+      status: healthy ? "ready" : "degraded",
+      version: "2.1.0",
+      checks,
       live_dispatch: false,
-      uptime: Math.floor(process.uptime()),
-    }),
-  );
-  const { requireAdmin } = await require("./operations").installOperations(
-    app,
-    { pool, memory, sites },
-  );
+      uptime_seconds: Math.floor(process.uptime()),
+    });
+  });
   app.use("/api/datasets", requireAdmin);
   app.get("/api/data/catalog", requireAdmin, async (req, res) =>
     res.json(
@@ -184,9 +209,15 @@ async function createServer({ pool = null, memory = false } = {}) {
     const horizon = req.query.horizon || "now";
     if (!["now", "3h", "24h"].includes(horizon))
       return res.status(400).json({ error: "Horizon must be now, 3h or 24h." });
+    const scenario = req.query.scenario || "normal";
+    if (!["normal", "watch", "danger"].includes(scenario))
+      return res
+        .status(400)
+        .json({ error: "Scenario must be normal, watch or danger." });
     const i = horizon === "3h" ? 3 : horizon === "24h" ? 24 : 0;
     res.json({
-      ...riskFor(s, s.timeline[i]),
+      ...riskFor(s, s.timeline[i], scenario),
+      scenario,
       provenance: "demonstration",
       source_timestamp: s.timeline[i].timestamp,
     });
@@ -234,7 +265,7 @@ async function createServer({ pool = null, memory = false } = {}) {
       `${s.id}-offline-bundle.json`,
     );
   });
-  app.post("/api/routes/plan", (req, res) => {
+  app.post("/api/routes/plan", async (req, res) => {
     const s = siteById(req.body.site);
     if (!s) return res.status(400).json({ error: "Unknown site." });
     const p = req.body.position;
@@ -248,11 +279,27 @@ async function createServer({ pool = null, memory = false } = {}) {
       return res
         .status(400)
         .json({ error: "Valid longitude and latitude required." });
-    res.json(
-      planRoute(s, p, {
-        features: dynamicFeatures(s, req.body.scenario || "normal"),
-      }),
-    );
+    const scenario = req.body.scenario || "normal";
+    if (!["normal", "watch", "danger"].includes(scenario))
+      return res
+        .status(400)
+        .json({ error: "Scenario must be normal, watch or danger." });
+    const elevationModel = await fs
+      .readFile(path.join(root, "elevation", `${s.id}.json`), "utf8")
+      .then(JSON.parse)
+      .catch(() => null);
+    const options = {
+      features: dynamicFeatures(s, scenario),
+      elevationModel,
+      destination:
+        typeof req.body.destination === "string"
+          ? req.body.destination
+          : undefined,
+    };
+    res.json({
+      scenario,
+      ...alternatives(s, p, options),
+    });
   });
   app.post("/api/zone/classify", (req, res) => {
     const s = siteById(req.body.site),
@@ -268,9 +315,15 @@ async function createServer({ pool = null, memory = false } = {}) {
       return res
         .status(400)
         .json({ error: "Valid site and coordinates required." });
+    const scenario = req.body.scenario || "normal";
+    if (!["normal", "watch", "danger"].includes(scenario))
+      return res
+        .status(400)
+        .json({ error: "Scenario must be normal, watch or danger." });
     res.json({
-      zone: classifyPosition(p, s.features.features),
-      provenance: "demo_geofences",
+      zone: classifyPosition(p, dynamicFeatures(s, scenario).features),
+      scenario,
+      provenance: "dynamic_demo_geofences",
     });
   });
   app.post("/api/demo/session", async (req, res) => {
@@ -282,6 +335,7 @@ async function createServer({ pool = null, memory = false } = {}) {
       });
     }
   });
+  // Attach only the demonstration workspace owned by the supplied token.
   const demo = async (req, res, next) => {
     try {
       const token = req.get("X-Demo-Session");
@@ -338,6 +392,7 @@ async function createServer({ pool = null, memory = false } = {}) {
   app.get("/api/messages/:site", demo, (req, res) =>
     res.json(req.demo.state.messages.filter((m) => m.site === req.params.site)),
   );
+  // Real operator authentication remains separate from demo workspaces.
   installAuth(app, pool);
   app.get("/api/operator/overview", requireOperator, async (req, res) => {
     if (!pool)
@@ -358,11 +413,13 @@ async function createServer({ pool = null, memory = false } = {}) {
   app.use("/api", (req, res) =>
     res.status(404).json({ error: "Endpoint not found." }),
   );
+  // A combined deployment can also serve the compiled React application.
   const dist = path.resolve(__dirname, "../../frontend/dist");
   app.use(express.static(dist));
   app.get("/{*path}", (req, res, next) =>
     res.sendFile(path.join(dist, "index.html"), (e) => e && next()),
   );
+  // Return consistent messages without exposing internal errors to clients.
   app.use((err, req, res, next) => {
     if (res.headersSent) return next(err);
     res.status(err.status || 500).json({

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-// SVG keeps the original survey visible on devices without WebGL.
+/** Render the mapped survey as SVG when WebGL or MapLibre is unavailable. */
 export default function SurveyMap({
   site,
   features,
@@ -12,6 +12,7 @@ export default function SurveyMap({
   incidents = [],
   dark = false,
 }) {
+  // Project longitude/latitude into this SVG's local pixel coordinate system.
   const view = useMemo(() => {
     const points = [];
     const collect = (c) => {
@@ -39,6 +40,7 @@ export default function SurveyMap({
       245 - (p[1] - cy - (maxY + minY) / 2) * scale,
     ];
   }, [site, features]);
+  // SVG polylines use a compact "x,y x,y" points string.
   const line = (coords) => coords.map((p) => view(p).join(",")).join(" ");
   const ink = dark ? "#6ec5b6" : "#168e81";
   return (

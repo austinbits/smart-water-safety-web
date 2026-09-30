@@ -2,16 +2,37 @@ import { useEffect, useRef, useState } from "react";
 import { Map, NavigationControl, Popup, setWorkerUrl } from "maplibre-gl";
 import mapWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Crosshair, Maximize, Layers } from "lucide-react";
+import {
+  Crosshair,
+  Maximize,
+  Layers,
+  Route,
+  ShieldAlert,
+  Users,
+} from "lucide-react";
 import { useWater } from "../store/water-context";
 import SurveyMap from "./SurveyMap";
+
+// MapLibre loads its renderer in a worker bundled by Vite.
 setWorkerUrl(mapWorkerUrl);
-const fc = (features) => ({ type: "FeatureCollection", features });
-const point = (coordinates, properties) => ({
+
+/** Wrap features in the GeoJSON collection shape expected by MapLibre. */
+const featureCollection = (features) => ({
+  type: "FeatureCollection",
+  features,
+});
+
+/** Create a GeoJSON point for people, incidents, and current positions. */
+const pointFeature = (coordinates, properties) => ({
   type: "Feature",
   geometry: { type: "Point", coordinates },
   properties,
 });
+
+/**
+ * Render the interactive safety map and synchronize it with React state.
+ * SurveyMap is used as a readable SVG fallback when WebGL is unavailable.
+ */
 export default function WaterMap({
   alternatives = [],
   onDestinationSelect,
@@ -36,15 +57,23 @@ export default function WaterMap({
     state,
   } = useWater();
   const [terrain, setTerrain] = useState(true);
+  const [layerMenu, setLayerMenu] = useState(false);
+  const [visibleLayers, setVisibleLayers] = useState({
+    hazards: true,
+    paths: true,
+    people: true,
+  });
   const position = positionOverride || contextPosition;
   const [fallback, setFallback] = useState(false);
-  const container = useRef(null),
-    mapRef = useRef(null),
-    props = useRef({});
-  const [error, setError] = useState(false),
-    [survey, setSurvey] = useState(false);
+  const container = useRef(null);
+  const mapRef = useRef(null);
+  const currentProps = useRef({});
+  const [error, setError] = useState(false);
+  const [survey, setSurvey] = useState(false);
+
+  // Map callbacks read this ref so the map is created once but sees new values.
   useEffect(() => {
-    props.current = {
+    currentProps.current = {
       alternatives,
       onDestinationSelect,
       features,
@@ -76,13 +105,15 @@ export default function WaterMap({
     state,
     onMapPosition,
   ]);
+
+  /** Copy current React data into each long-lived MapLibre data source. */
   function sync() {
     const map = mapRef.current;
     if (!map?.getSource("site")) return;
-    const p = props.current;
+    const p = currentProps.current;
     map.getSource("site").setData(p.features);
     map.getSource("alternatives")?.setData(
-      fc(
+      featureCollection(
         (p.alternatives || []).map((r) => ({
           type: "Feature",
           geometry: r.geometry,
@@ -93,10 +124,10 @@ export default function WaterMap({
     map
       .getSource("people")
       .setData(
-        fc(
+        featureCollection(
           p.showPeople
             ? p.people.map((u) =>
-                point([u.lng, u.lat], { ...u, name: u.name || u.id }),
+                pointFeature([u.lng, u.lat], { ...u, name: u.name || u.id }),
               )
             : [],
         ),
@@ -104,12 +135,16 @@ export default function WaterMap({
     map
       .getSource("position")
       .setData(
-        fc(p.position ? [point(p.position, { name: "Current position" })] : []),
+        featureCollection(
+          p.position
+            ? [pointFeature(p.position, { name: "Current position" })]
+            : [],
+        ),
       );
     map
       .getSource("selected")
       .setData(
-        fc(
+        featureCollection(
           p.route
             ? [{ type: "Feature", geometry: p.route, properties: {} }]
             : p.features.features.filter(
@@ -117,31 +152,42 @@ export default function WaterMap({
               ),
         ),
       );
-    map.getSource("search").setData(fc(p.search ? [p.search] : []));
+    map
+      .getSource("search")
+      .setData(featureCollection(p.search ? [p.search] : []));
     map
       .getSource("crowd")
-      .setData(fc(p.site.crowd.map((c) => point([c.lng, c.lat], c))));
-    map
-      .getSource("incidents")
       .setData(
-        fc(
-          p.state.incidents
-            .filter(
-              (i) =>
-                i.site === p.site.id &&
-                !["cancelled", "resolved"].includes(i.status),
-            )
-            .map((i) =>
-              point([i.lng, i.lat], { ...i, name: `SOS · ${i.status}` }),
-            ),
+        featureCollection(
+          p.site.crowd.map((crowd) =>
+            pointFeature([crowd.lng, crowd.lat], crowd),
+          ),
         ),
       );
+    map.getSource("incidents").setData(
+      featureCollection(
+        p.state.incidents
+          .filter(
+            (i) =>
+              i.site === p.site.id &&
+              !["cancelled", "resolved"].includes(i.status),
+          )
+          .map((i) =>
+            pointFeature([i.lng, i.lat], {
+              ...i,
+              name: `SOS · ${i.status}`,
+            }),
+          ),
+      ),
+    );
     map.setLayoutProperty(
       "crowd-heat",
       "visibility",
       p.heatmap ? "visible" : "none",
     );
   }
+
+  // Create MapLibre once for this site. Data updates are handled by sync().
   useEffect(() => {
     let map;
     // External WebGL initialization can fail once; update the fallback view.
@@ -219,6 +265,7 @@ export default function WaterMap({
     );
     map.on("error", () => setError(true));
     map.on("load", () => {
+      // Terrain shading provides visual context; it is not a field survey.
       map.addLayer({
         id: "terrain-shading",
         type: "hillshade",
@@ -238,10 +285,15 @@ export default function WaterMap({
         "search",
         "crowd",
         "incidents",
-      ])
-        map.addSource(name, { type: "geojson", data: fc([]) });
+      ]) {
+        map.addSource(name, { type: "geojson", data: featureCollection([]) });
+      }
+
+      // Reusable filters make the following declarative layer definitions readable.
       const category = (c) => ["==", ["get", "category"], c];
       const polygons = ["==", ["geometry-type"], "Polygon"];
+
+      // Study boundary and mapped water context.
       map.addLayer({
         id: "study-fill",
         type: "fill",
@@ -290,6 +342,34 @@ export default function WaterMap({
           "fill-opacity": dark ? 0.32 : 0.22,
         },
       });
+      // Raised hazard surfaces make risk boundaries legible in pitched 3D view.
+      map.addLayer({
+        id: "hazard-extrusion",
+        type: "fill-extrusion",
+        source: "site",
+        filter: ["all", polygons, category("hazard")],
+        paint: {
+          "fill-extrusion-color": [
+            "match",
+            ["get", "level"],
+            "high",
+            "#df4554",
+            "medium",
+            "#d99a34",
+            "#2a9f7c",
+          ],
+          "fill-extrusion-height": [
+            "match",
+            ["get", "level"],
+            "high",
+            22,
+            "medium",
+            12,
+            5,
+          ],
+          "fill-extrusion-opacity": 0.28,
+        },
+      });
       map.addLayer({
         id: "hazard-line",
         type: "line",
@@ -301,6 +381,8 @@ export default function WaterMap({
           "line-dasharray": [4, 3],
         },
       });
+
+      // Walking paths, alternatives, and the route currently selected by the user.
       map.addLayer({
         id: "routes-outline",
         type: "line",
@@ -359,6 +441,27 @@ export default function WaterMap({
         paint: { "line-color": "#087e77", "line-width": 4 },
       });
       map.addLayer({
+        id: "selected-route-direction",
+        type: "symbol",
+        source: "selected",
+        filter: ["==", ["geometry-type"], "LineString"],
+        layout: {
+          "symbol-placement": "line",
+          "symbol-spacing": 75,
+          "text-field": "➤",
+          "text-size": 14,
+          "text-keep-upright": false,
+          "text-rotation-alignment": "map",
+        },
+        paint: {
+          "text-color": "#ffffff",
+          "text-halo-color": "#087e77",
+          "text-halo-width": 2,
+        },
+      });
+
+      // Named facilities, candidate safe points, and other mapped landmarks.
+      map.addLayer({
         id: "landmarks",
         type: "circle",
         source: "site",
@@ -411,6 +514,8 @@ export default function WaterMap({
           "text-halo-width": 1.5,
         },
       });
+
+      // Anonymous visitors and rescue teams use distinct colors.
       map.addLayer({
         id: "people-halo",
         type: "circle",
@@ -444,6 +549,8 @@ export default function WaterMap({
           "circle-stroke-width": 1.5,
         },
       });
+
+      // Operational overlays: crowd density, search envelope, position, and SOS.
       map.addLayer({
         id: "crowd-heat",
         type: "heatmap",
@@ -513,9 +620,11 @@ export default function WaterMap({
       // This callback synchronizes an external MapLibre instance.
       sync();
     });
+
+    // A map click can choose a planning point, route, landmark, or popup target.
     map.on("click", (e) => {
-      if (props.current.onMapPosition) {
-        props.current.onMapPosition([e.lngLat.lng, e.lngLat.lat]);
+      if (currentProps.current.onMapPosition) {
+        currentProps.current.onMapPosition([e.lngLat.lng, e.lngLat.lat]);
         return;
       }
       if (!map.getLayer("routes")) return;
@@ -525,11 +634,13 @@ export default function WaterMap({
       const f = results[0];
       if (!f) return;
       if (f.layer.id === "routes") {
-        props.current.onRouteSelect?.(f.properties.id);
+        currentProps.current.onRouteSelect?.(f.properties.id);
         return;
       }
       if (f.layer.id === "landmarks")
-        props.current.onDestinationSelect?.(f.properties.id);
+        currentProps.current.onDestinationSelect?.(f.properties.id);
+
+      // textContent prevents feature names from being interpreted as HTML.
       const node = document.createElement("div"),
         strong = document.createElement("strong"),
         small = document.createElement("small");
@@ -545,6 +656,8 @@ export default function WaterMap({
         .setDOMContent(node)
         .addTo(map);
     });
+
+    // MapLibre needs an explicit resize notification when its responsive card changes.
     const observer = new ResizeObserver(() => map.resize());
     observer.observe(container.current);
     return () => {
@@ -553,6 +666,8 @@ export default function WaterMap({
       mapRef.current = null;
     };
   }, [site.id, site.center, site.zoom, dark]);
+
+  // Data changes update sources without rebuilding the expensive WebGL map.
   useEffect(() => {
     sync();
   }, [
@@ -567,21 +682,47 @@ export default function WaterMap({
     showPeople,
     state,
   ]);
+
+  // Hide network street tiles in survey/offline mode; local vectors remain visible.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     const set = () => {
-      if (map.getLayer("streets"))
+      if (map.getLayer("streets")) {
         map.setLayoutProperty(
           "streets",
           "visibility",
           survey || offlineDemo || !online ? "none" : "visible",
         );
+      }
     };
-    if (map.isStyleLoaded()) set();
-    else map.once("load", set);
+    if (map.isStyleLoaded()) {
+      set();
+    } else {
+      map.once("load", set);
+    }
     return () => map.off("load", set);
   }, [survey, offlineDemo, online, site.id]);
+
+  /** Toggle related MapLibre layers together from the compact layer menu. */
+  function toggleLayer(group) {
+    const nextVisible = !visibleLayers[group];
+    setVisibleLayers((current) => ({ ...current, [group]: nextVisible }));
+    const groups = {
+      hazards: ["hazard-fill", "hazard-extrusion", "hazard-line"],
+      paths: ["routes-outline", "routes", "restricted"],
+      people: ["people-halo", "people-pins"],
+    };
+    for (const layer of groups[group]) {
+      if (mapRef.current?.getLayer(layer)) {
+        mapRef.current.setLayoutProperty(
+          layer,
+          "visibility",
+          nextVisible ? "visible" : "none",
+        );
+      }
+    }
+  }
   return (
     <div className="map-wrap">
       {fallback && (
@@ -655,18 +796,40 @@ export default function WaterMap({
           {terrain ? "3D" : "2D"}
         </button>
         <button
-          className={!survey ? "active" : ""}
-          onClick={() => setSurvey(false)}
+          className={layerMenu ? "active" : ""}
+          onClick={() => setLayerMenu(!layerMenu)}
         >
-          Map
-        </button>
-        <button
-          className={survey ? "active" : ""}
-          onClick={() => setSurvey(true)}
-        >
-          <Layers size={12} /> Survey
+          <Layers size={12} /> Layers
         </button>
       </div>
+      {layerMenu && (
+        <div className="map-layer-menu">
+          <button
+            className={visibleLayers.hazards ? "active" : ""}
+            onClick={() => toggleLayer("hazards")}
+          >
+            <ShieldAlert size={15} /> Hazards
+          </button>
+          <button
+            className={visibleLayers.paths ? "active" : ""}
+            onClick={() => toggleLayer("paths")}
+          >
+            <Route size={15} /> Paths
+          </button>
+          <button
+            className={visibleLayers.people ? "active" : ""}
+            onClick={() => toggleLayer("people")}
+          >
+            <Users size={15} /> People
+          </button>
+          <button
+            className={survey ? "active" : ""}
+            onClick={() => setSurvey(!survey)}
+          >
+            <Layers size={15} /> Survey view
+          </button>
+        </div>
+      )}
     </div>
   );
 }

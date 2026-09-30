@@ -1,4 +1,6 @@
-/* Shared controls and data surfaces */
+/* -------------------------------------------------------------------------- */
+/* Shared controls and data surfaces used by the specialized application modes. */
+/* -------------------------------------------------------------------------- */
 dialog.modal {
   position: fixed;
   margin: auto;
@@ -88,7 +90,7 @@ dialog::backdrop {
 .spinning {
   animation: spin 1s linear infinite;
 }
-/* Forecast: quiet, data-rich light surfaces */
+/* Forecast workspace: quiet, data-rich light surfaces. */
 .forecast-toolbar {
   display: flex;
   align-items: center;
@@ -276,6 +278,70 @@ dialog::backdrop {
   display: grid;
   gap: 14px;
 }
+.risk-score-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 15px;
+  border-radius: 12px;
+  background: #f4f8f6;
+}
+.risk-score-card p,
+.risk-score-card small {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+.risk-score-ring {
+  width: 70px;
+  height: 70px;
+  flex: 0 0 70px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  border: 7px solid #48a88f;
+  border-radius: 50%;
+}
+.risk-score-ring.caution {
+  border-color: #d49a3d;
+}
+.risk-score-ring.avoid {
+  border-color: #cb545f;
+}
+.risk-score-ring strong {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.risk-score-ring span {
+  color: var(--muted);
+  font-size: 0.58rem;
+}
+.driver-wrap > small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.6rem;
+  text-align: right;
+}
+.driver-contribution {
+  height: 4px;
+  margin-top: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e3ebe7;
+}
+.driver-contribution span {
+  display: block;
+  height: 100%;
+  background: #279980;
+}
+.driver-contribution span.caution {
+  background: #c3903c;
+}
+.driver-contribution span.avoid {
+  background: #cb545f;
+}
 .driver {
   display: flex;
   align-items: center;
@@ -365,7 +431,7 @@ dialog::backdrop {
   align-items: center;
   gap: 7px;
 }
-/* Rescue / emergency inherit the same scale, with a low-glare operational palette. */
+/* Rescue and emergency workspaces use a low-glare operational palette. */
 .dark-mode {
   --bg: #0d202c;
   --surface: #152b38;
@@ -691,7 +757,7 @@ dialog::backdrop {
 .emergency-page .map-wrap {
   height: 380px;
 }
-/* Rescue command center */
+/* Rescue command center: incident lists, teams, audit history, and messages. */
 .rescue-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1033,7 +1099,7 @@ dialog::backdrop {
   font-size: 0.73rem;
   color: #c2e6db;
 }
-/* Source register */
+/* Data source register: searchable tables and dataset inspection panels. */
 .data-summary {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

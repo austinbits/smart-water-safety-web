@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "npm --prefix frontend run build",
-    "test": "npm --prefix backend test",
+    "test": "npm --prefix backend test && npm --prefix frontend test",
     "lint": "npm --prefix frontend run lint",
     "migrate": "npm --prefix backend run migrate"
   },

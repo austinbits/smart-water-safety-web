@@ -8,21 +8,25 @@ import {
   Radio,
 } from "lucide-react";
 import { useAuth } from "../store/auth-context";
+
+/** Choose a visitor or operator workspace and establish its browser session. */
 export default function LoginPage() {
   const { login } = useAuth();
-  const [role, setRole] = useState("tourist"),
-    [mode, setMode] = useState("demo"),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
-  async function submit(e) {
-    e.preventDefault();
+  const [role, setRole] = useState("tourist");
+  const [mode, setMode] = useState("demo");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  /** Normalize form values before handing them to the authentication provider. */
+  async function submit(event) {
+    event.preventDefault();
     setBusy(true);
     setError("");
-    const f = Object.fromEntries(new FormData(e.currentTarget));
+    const form = Object.fromEntries(new FormData(event.currentTarget));
     try {
-      await login({ ...f, age: Number(f.age), role, mode });
-    } catch (e) {
-      setError(e.message);
+      await login({ ...form, age: Number(form.age), role, mode });
+    } catch (submitError) {
+      setError(submitError.message);
     } finally {
       setBusy(false);
     }
@@ -34,18 +38,18 @@ export default function LoginPage() {
           <span className="brand-mark">
             <Waves />
           </span>
-          Smart Water
+          <span className="brand-word">Map workspace</span>
         </div>
         <div className="welcome-copy">
-          <span className="eyebrow">AWARENESS STARTS HERE</span>
+          <span className="eyebrow">THREE MAPPED LOCATIONS</span>
           <h1>
-            Closer to nature.
+            Routes, conditions
             <br />
-            <em>Connected to safety.</em>
+            <em>and emergency response.</em>
           </h1>
           <p>
-            Understand the water. Find your way. Stay connected to the people
-            ready to help.
+            Explore paths, compare current modeled risk and rehearse a shared
+            response workflow.
           </p>
           <div className="landscape-art">
             <i />
@@ -68,12 +72,12 @@ export default function LoginPage() {
             </span>
           </div>
         </div>
-        <small>SMART INDIA HACKATHON 2026 · WATER SAFETY NETWORK</small>
+        <small>ROUTES · CONDITIONS · EMERGENCY RESPONSE</small>
       </section>
       <section className="welcome-form">
-        <span className="eyebrow">YOUR JOURNEY, YOUR WORKSPACE</span>
-        <h2>Welcome aboard.</h2>
-        <p>Choose how you’re joining us today.</p>
+        <span className="eyebrow">OPEN A WORKSPACE</span>
+        <h2>Choose a view</h2>
+        <p>Use the visitor map or response console.</p>
         <div className="role-choice">
           {[
             ["tourist", "Tourist", Compass],

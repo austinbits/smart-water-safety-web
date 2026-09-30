@@ -28,9 +28,11 @@ import { api, downloadJSON } from "../services/api";
 import ZoneOutlook from "../components/ZoneOutlook";
 import { useAuth } from "../store/auth-context";
 import { riskFor, RULES } from "../../../shared/engine.mjs";
-const formatTime = (t) =>
-  t
-    ? new Date(t).toLocaleString("en-IN", {
+
+/** Display timestamps consistently in the pilot sites' local time zone. */
+const formatTime = (timestamp) =>
+  timestamp
+    ? new Date(timestamp).toLocaleString("en-IN", {
         timeZone: "Asia/Kolkata",
         month: "short",
         day: "numeric",
@@ -46,17 +48,23 @@ const metricDefinitions = {
   wind: { label: "Wind speed", unit: "km/h", icon: Wind },
   temperature: { label: "Air temperature", unit: "°C", icon: Thermometer },
 };
+
+/** Compare prepared demonstration data with optional live model forecasts. */
 export default function ForecastPage() {
   const { admin, user } = useAuth();
   const { site, siteId, frame, scenario, notify } = useWater();
-  const [source, setSource] = useState("demo"),
-    [model, setModel] = useState(null),
-    [loading, setLoading] = useState(false),
-    [error, setError] = useState(""),
-    [horizon, setHorizon] = useState(0),
-    [expanded, setExpanded] = useState(null);
+  const [source, setSource] = useState("demo");
+  const [model, setModel] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [horizon, setHorizon] = useState(0);
+  const [expanded, setExpanded] = useState(null);
   const requestRef = useRef(null);
+
+  // Cancel network work if the user leaves before the model responds.
   useEffect(() => () => requestRef.current?.abort(), []);
+
+  /** Request an on-demand numerical forecast for the selected pilot site. */
   async function loadModel() {
     requestRef.current?.abort();
     const controller = new AbortController();
@@ -64,45 +72,61 @@ export default function ForecastPage() {
     setLoading(true);
     setError("");
     try {
-      const d = await api(`/weather/${siteId}`, {
+      const response = await api(`/weather/${siteId}`, {
         signal: AbortSignal.any([
           controller.signal,
           AbortSignal.timeout(15000),
         ]),
       });
       if (!controller.signal.aborted) {
-        setModel(d);
+        setModel(response);
         setSource("model");
       }
-    } catch (e) {
-      if (!controller.signal.aborted) setError(e.message);
+    } catch (requestError) {
+      if (!controller.signal.aborted) setError(requestError.message);
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
   }
+  // Convert Open-Meteo's parallel hourly arrays into ordinary row objects.
   const modelRows = useMemo(() => {
     if (!model?.weather.hourly) return [];
-    const h = model.weather.hourly,
-      m = model.marine?.hourly,
-      u = model.marine?.hourly_units?.ocean_current_velocity;
-    const toMs = (v) =>
-      v == null ? null : u === "km/h" ? v / 3.6 : u === "m/s" ? v : null;
-    return h.time.map((t, i) => {
-      const j = m?.time.indexOf(t) ?? -1;
+
+    const weather = model.weather.hourly;
+    const marine = model.marine?.hourly;
+    const currentSpeedUnit = model.marine?.hourly_units?.ocean_current_velocity;
+
+    const convertCurrentToMetersPerSecond = (value) => {
+      if (value == null) return null;
+      if (currentSpeedUnit === "km/h") return value / 3.6;
+      if (currentSpeedUnit === "m/s") return value;
+      return null;
+    };
+
+    return weather.time.map((timestamp, index) => {
+      const marineIndex = marine?.time.indexOf(timestamp) ?? -1;
+      const hasMarineSample = marineIndex >= 0;
       return {
-        timestamp: t + "+05:30",
-        temperature: h.temperature_2m[i],
-        rainfall: h.precipitation[i],
-        wind: h.wind_speed_10m[i],
-        wind_direction: h.wind_direction_10m?.[i],
-        rain_probability: h.precipitation_probability?.[i],
-        wave_height: j >= 0 ? m.wave_height[j] : null,
-        flow_speed: j >= 0 ? toMs(m.ocean_current_velocity?.[j]) : null,
+        timestamp: timestamp + "+05:30",
+        temperature: weather.temperature_2m[index],
+        rainfall: weather.precipitation[index],
+        wind: weather.wind_speed_10m[index],
+        wind_direction: weather.wind_direction_10m?.[index],
+        rain_probability: weather.precipitation_probability?.[index],
+        wave_height: hasMarineSample ? marine.wave_height[marineIndex] : null,
+        flow_speed: hasMarineSample
+          ? convertCurrentToMetersPerSecond(
+              marine.ocean_current_velocity?.[marineIndex],
+            )
+          : null,
         water_level: null,
-        sea_level_msl: j >= 0 ? m.sea_level_height_msl?.[j] : null,
+        sea_level_msl: hasMarineSample
+          ? marine.sea_level_height_msl?.[marineIndex]
+          : null,
       };
     });
   }, [model]);
+  // From this point onward demo and model data share one display shape.
   const isModel = source === "model" && model;
   const rows = isModel ? modelRows : site.timeline;
   const baseline =
@@ -114,8 +138,8 @@ export default function ForecastPage() {
           : r.timestamp.startsWith("2026-09-07T12"),
       ),
     ) + (isModel ? 0 : Math.floor(frame / 3));
-  const index = Math.min(rows.length - 1, baseline + horizon),
-    sample = rows[index] || {};
+  const index = Math.min(rows.length - 1, baseline + horizon);
+  const sample = rows[index] || {};
   const currentRisk = isModel ? null : riskFor(site, sample, scenario);
   const metrics = isModel
     ? sample
@@ -127,6 +151,7 @@ export default function ForecastPage() {
           ),
         ),
       };
+  // Only metrics relevant to this type of water landscape are shown.
   const keys =
     site.type === "beach"
       ? ["wave_height", "flow_speed", "wind", "rainfall"]
@@ -142,6 +167,7 @@ export default function ForecastPage() {
       : currentRisk.status === "caution"
         ? "Watch the water. Plan ahead."
         : "Know what’s happening at the water.";
+  // Tide rows remain reference data; they are never presented as live sensors.
   const tideDay =
     site.tides?.days.find(
       (d) => d.date === (sample.timestamp || "").slice(0, 10),
@@ -336,21 +362,45 @@ export default function ForecastPage() {
             </div>
           ) : (
             <>
+              <div className="risk-score-card">
+                <div className={`risk-score-ring ${currentRisk.status}`}>
+                  <strong>{currentRisk.score}</strong>
+                  <span>/ 100</span>
+                </div>
+                <div>
+                  <strong>Transparent modeled risk score</strong>
+                  <p>{currentRisk.method}.</p>
+                  <small>{currentRisk.confidence}% input coverage</small>
+                </div>
+              </div>
               <div className="driver-list">
                 {currentRisk.drivers.map((d) => (
-                  <div className="driver" key={d.key}>
-                    <span className={`driver-dot ${d.level}`} />
-                    <span>{d.label}</span>
-                    <strong>
-                      {d.value == null
-                        ? "Unavailable"
-                        : `${d.value.toFixed(2)} ${d.unit}`}
-                    </strong>
-                    <Badge value={d.level}>
-                      {d.level === "unknown"
-                        ? "MISSING"
-                        : d.level.toUpperCase()}
-                    </Badge>
+                  <div className="driver-wrap" key={d.key}>
+                    <div className="driver">
+                      <span className={`driver-dot ${d.level}`} />
+                      <span>{d.label}</span>
+                      <strong>
+                        {d.value == null
+                          ? "Unavailable"
+                          : `${d.value.toFixed(2)} ${d.unit}`}
+                      </strong>
+                      <Badge value={d.level}>
+                        {d.level === "unknown"
+                          ? "MISSING"
+                          : d.level.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <div className="driver-contribution">
+                      <span
+                        style={{ width: `${d.contribution ?? 0}%` }}
+                        className={d.level}
+                      />
+                    </div>
+                    <small>
+                      {d.contribution == null
+                        ? "Not included in score"
+                        : `${d.contribution}% of avoid threshold`}
+                    </small>
                   </div>
                 ))}
               </div>

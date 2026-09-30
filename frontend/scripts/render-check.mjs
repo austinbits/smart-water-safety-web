@@ -8,6 +8,9 @@ import { initialState, applyAction } from "../../shared/demo.mjs";
 import { riskFor, dynamicFeatures } from "../../shared/engine.mjs";
 
 globalThis.window = { location: { origin: "http://127.0.0.1:5173" } };
+
+// Vite loads JSX exactly as the browser build would, while React renders it
+// without opening a real browser. This catches broken imports and render errors.
 const server = await createServer({
   server: { middlewareMode: true },
   appType: "custom",
@@ -18,14 +21,15 @@ try {
   const manifest = JSON.parse(
     fs.readFileSync("public/data/manifest.json", "utf8"),
   );
+  const pageNames = [
+    "ExplorePage",
+    "ForecastPage",
+    "EmergencyPage",
+    "RescueDashboard",
+    "DataPage",
+  ];
   const pages = await Promise.all(
-    [
-      "ExploreV2",
-      "ForecastPage",
-      "EmergencyV2",
-      "RescueV2",
-      "DataPage",
-    ].map(async (name) => ({
+    pageNames.map(async (name) => ({
       name,
       Component: (await server.ssrLoadModule(`/src/pages/${name}.jsx`)).default,
     })),

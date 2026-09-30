@@ -1,7 +1,14 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { randomBytes, createHash } = require("node:crypto");
-const hash = (t) => createHash("sha256").update(t).digest("hex");
+
+/** Hash tokens before they are used as database keys or filenames. */
+const hash = (token) => createHash("sha256").update(token).digest("hex");
+
+/**
+ * Persist isolated demonstration workspaces in PostgreSQL, local files, or memory.
+ * The same public methods work in every mode, so route handlers stay storage-agnostic.
+ */
 class DemoStore {
   constructor(pool, initialState, applyAction, { memory = false } = {}) {
     this.pool = pool;
@@ -13,6 +20,8 @@ class DemoStore {
     this.memory = memory;
     this.dir = path.resolve(__dirname, "../runtime");
   }
+
+  /** Detect the best available persistence mode and prepare local storage. */
   async init() {
     if (this.pool) {
       try {
@@ -24,32 +33,55 @@ class DemoStore {
         this.mode = "device";
       }
     }
-    if (!this.memory) await fs.mkdir(this.dir, { recursive: true });
+    if (!this.memory) {
+      await fs.mkdir(this.dir, { recursive: true });
+    }
   }
+
+  /** Confirm that the active persistence layer is reachable. */
+  async health() {
+    if (this.mode === "supabase") {
+      await this.pool.query("SELECT 1");
+      return "postgres";
+    }
+    if (!this.memory) {
+      await fs.access(this.dir);
+      return "device";
+    }
+    return "memory";
+  }
+
+  /** Load a non-expired workspace using its private token. */
   async get(token) {
     if (!/^[a-f0-9]{64}$/.test(token || "")) return null;
     const key = hash(token);
     if (this.sessions.has(key)) return this.sessions.get(key);
     let state;
     if (this.mode === "supabase") {
-      const r = await this.pool.query(
+      const result = await this.pool.query(
         "SELECT payload FROM sws_demo_sessions WHERE session_hash=$1 AND updated_at>NOW()-INTERVAL '30 days'",
         [key],
       );
-      state = r.rows[0]?.payload;
+      state = result.rows[0]?.payload;
     } else if (!this.memory) {
       try {
-        const r = JSON.parse(
+        const savedSession = JSON.parse(
           await fs.readFile(path.join(this.dir, `${key}.json`), "utf8"),
         );
-        if (Date.now() - r.updated_at < 30 * 86400000) state = r.payload;
+        if (Date.now() - savedSession.updated_at < 30 * 86_400_000) {
+          state = savedSession.payload;
+        }
       } catch {
-        /* new session */
+        // A missing or unreadable file means this token has no saved session.
       }
     }
-    if (state) this.sessions.set(key, state);
+    if (state) {
+      this.sessions.set(key, state);
+    }
     return state || null;
   }
+
+  /** Save atomically, then refresh the in-memory cache. */
   async save(token, state) {
     const key = hash(token);
     if (this.mode === "supabase")
@@ -67,19 +99,24 @@ class DemoStore {
     }
     this.sessions.set(key, state);
   }
+
+  /** Reuse an existing workspace or create a new isolated one. */
   async session(existing) {
     const current = await this.get(existing);
     if (current) return { token: existing, state: current, storage: this.mode };
-    if (this.sessions.size >= 1000)
+    if (this.sessions.size >= 1000) {
       throw new Error("Demo session limit reached.");
-    const token = randomBytes(32).toString("hex"),
-      state = this.initialState();
+    }
+    const token = randomBytes(32).toString("hex");
+    const state = this.initialState();
     await this.save(token, state);
     return { token, state, storage: this.mode };
   }
+
+  /** Apply one action at a time per workspace to avoid conflicting updates. */
   async action(token, event) {
-    const key = hash(token),
-      prior = this.locks.get(key) || Promise.resolve();
+    const key = hash(token);
+    const prior = this.locks.get(key) || Promise.resolve();
     const task = prior
       .catch(() => {})
       .then(async () => {
@@ -105,9 +142,9 @@ class DemoStore {
             await client.query("COMMIT");
             this.sessions.set(key, state);
             return state;
-          } catch (e) {
+          } catch (error) {
             await client.query("ROLLBACK");
-            throw e;
+            throw error;
           } finally {
             client.release();
           }
@@ -127,8 +164,11 @@ class DemoStore {
     try {
       return await task;
     } finally {
-      if (this.locks.get(key) === task) this.locks.delete(key);
+      if (this.locks.get(key) === task) {
+        this.locks.delete(key);
+      }
     }
   }
 }
+
 module.exports = { DemoStore, hash };

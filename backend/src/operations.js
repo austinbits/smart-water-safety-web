@@ -4,6 +4,27 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const { getUser } = require("./auth");
 const digest = (value) => createHash("sha256").update(value).digest("hex");
+const WORKSPACE_COOKIE = "sws_workspace";
+
+/** Read one named cookie without depending on an additional parser package. */
+function readCookie(req, name) {
+  return (req.headers.cookie || "")
+    .split(";")
+    .map((value) => value.trim())
+    .find((value) => value.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+}
+
+/** Keep the drill key server-readable so EventSource can authenticate safely. */
+function setWorkspaceCookie(res, key) {
+  const production = process.env.NODE_ENV === "production";
+  res.append(
+    "Set-Cookie",
+    `${WORKSPACE_COOKIE}=${key}; HttpOnly; Path=/api; SameSite=${production ? "None" : "Lax"}; Max-Age=86400${production ? "; Secure" : ""}`,
+  );
+}
+
+/** Persist operational workspaces in PostgreSQL, local JSON, or memory. */
 class Operations {
   constructor(pool, memory) {
     this.pool = pool;
@@ -11,12 +32,20 @@ class Operations {
     this.rows = {};
     this.chain = Promise.resolve();
   }
+
+  /** Detect database availability and prepare the local fallback. */
   async init() {
-    if (this.pool)
-      await this.pool.query(
-        "CREATE TABLE IF NOT EXISTS sws_operations (id text PRIMARY KEY, payload jsonb NOT NULL); ALTER TABLE sws_operations ENABLE ROW LEVEL SECURITY",
-      );
-    else if (!this.memory) {
+    if (this.pool) {
+      try {
+        await this.pool.query(
+          "CREATE TABLE IF NOT EXISTS sws_operations (id text PRIMARY KEY, payload jsonb NOT NULL); ALTER TABLE sws_operations ENABLE ROW LEVEL SECURITY",
+        );
+      } catch {
+        // A remote database must not make the local prototype unusable.
+        this.pool = null;
+      }
+    }
+    if (!this.pool && !this.memory) {
       try {
         this.rows = JSON.parse(
           await fs.readFile(
@@ -29,6 +58,8 @@ class Operations {
       }
     }
   }
+
+  /** Load one isolated operational workspace. */
   async get(id) {
     return this.pool
       ? (
@@ -39,6 +70,8 @@ class Operations {
         ).rows[0]?.payload
       : structuredClone(this.rows[id]);
   }
+
+  /** Serialize updates so concurrent requests cannot overwrite one another. */
   async update(id, fn) {
     const task = this.chain.then(async () => {
       if (this.pool) {
@@ -85,6 +118,19 @@ class Operations {
     this.chain = task.catch(() => {});
     return task;
   }
+
+  /** Verify that the selected persistence layer can answer a lightweight read. */
+  async health() {
+    if (this.pool) {
+      await this.pool.query("SELECT 1");
+      return "postgres";
+    }
+    if (!this.memory) {
+      await fs.access(path.join(__dirname, "../runtime"));
+      return "device";
+    }
+    return "memory";
+  }
 }
 const fail = (status, message) => {
   throw Object.assign(new Error(message), { status });
@@ -95,6 +141,7 @@ const validPosition = (p) =>
   Number.isFinite(p.lat) &&
   Math.abs(p.lng) <= 180 &&
   Math.abs(p.lat) <= 90;
+/** Remove private or unrelated records before returning state to a user. */
 function publicState(state, actor) {
   if (admin(actor))
     return {
@@ -144,11 +191,22 @@ function publicState(state, actor) {
     visitors: [],
   };
 }
+/** Register invitation, workspace, action, and replay routes. */
 async function installOperations(app, { pool, memory, sites }) {
   const { initialState, applyAction } = await import("../../shared/demo.mjs");
   const { distance } = await import("../../shared/engine.mjs");
   const repository = new Operations(pool, memory);
   await repository.init();
+  // Each room has a small set of authenticated browser event streams.
+  const subscribers = new Map();
+
+  function publish(room, state) {
+    for (const subscriber of subscribers.get(room) || []) {
+      subscriber.res.write(
+        `event: workspace\ndata: ${JSON.stringify(publicState(state, subscriber.actor))}\n\n`,
+      );
+    }
+  }
   function initial(demo = true) {
     const s = initialState();
     s.visitors = {};
@@ -164,7 +222,7 @@ async function installOperations(app, { pool, memory, sites }) {
     return s;
   }
   async function actor(req) {
-    const key = req.get("X-Workspace-Key");
+    const key = req.get("X-Workspace-Key") || readCookie(req, WORKSPACE_COOKIE);
     if (key) {
       const s = await repository.get("session:" + digest(key));
       if (s && s.expires > Date.now()) return s;
@@ -177,11 +235,9 @@ async function installOperations(app, { pool, memory, sites }) {
     try {
       await fn(req, res);
     } catch (e) {
-      res
-        .status(e.status || 500)
-        .json({
-          error: e.status ? e.message : "Workspace temporarily unavailable.",
-        });
+      res.status(e.status || 500).json({
+        error: e.status ? e.message : "Workspace temporarily unavailable.",
+      });
     }
   };
   app.post(
@@ -226,6 +282,7 @@ async function installOperations(app, { pool, memory, sites }) {
         expires: Date.now() + 86400000,
       };
       await repository.update("session:" + digest(key), () => user);
+      setWorkspaceCookie(res, key);
       res.json({ key, user });
     }),
   );
@@ -242,8 +299,33 @@ async function installOperations(app, { pool, memory, sites }) {
         state = await repository.update(a.room, () => initial(a.demo));
       res.json({
         state: publicState(state, a),
-        storage: pool ? "supabase" : "server",
+        storage: repository.pool ? "supabase" : "server",
         server_time: new Date().toISOString(),
+      });
+    }),
+  );
+  app.get(
+    "/api/workspace/events",
+    wrap(async (req, res) => {
+      const currentActor = await actor(req);
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.flushHeaders();
+
+      const subscriber = { actor: currentActor, res };
+      if (!subscribers.has(currentActor.room)) {
+        subscribers.set(currentActor.room, new Set());
+      }
+      subscribers.get(currentActor.room).add(subscriber);
+      res.write(`event: ready\ndata: {"connected":true}\n\n`);
+      const heartbeat = setInterval(() => res.write(": heartbeat\n\n"), 20000);
+
+      req.on("close", () => {
+        clearInterval(heartbeat);
+        const roomSubscribers = subscribers.get(currentActor.room);
+        roomSubscribers?.delete(subscriber);
+        if (!roomSubscribers?.size) subscribers.delete(currentActor.room);
       });
     }),
   );
@@ -387,9 +469,10 @@ async function installOperations(app, { pool, memory, sites }) {
         }
         return s;
       });
+      publish(a.room, state);
       res.json({
         state: publicState(state, a),
-        storage: pool ? "supabase" : "server",
+        storage: repository.pool ? "supabase" : "server",
       });
     }),
   );

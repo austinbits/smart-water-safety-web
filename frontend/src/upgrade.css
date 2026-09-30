@@ -1,3 +1,7 @@
+/* -------------------------------------------------------------------------- */
+/* Sign-in experience and newer map/dashboard presentation refinements.       */
+/* These rules remain separate from App.css to keep the core shell readable.  */
+/* -------------------------------------------------------------------------- */
 .welcome {
   min-height: 100vh;
   display: grid;
@@ -236,6 +240,53 @@ textarea {
   background: #eaf2ed;
   color: #365a4c;
   font-size: 13px;
+}
+.zone-impact {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+.zone-impact > div {
+  padding: 12px;
+  border: 1px solid #dce7e2;
+  border-radius: 9px;
+}
+.zone-impact strong,
+.zone-impact span {
+  display: block;
+}
+.zone-impact strong {
+  font-size: 16px;
+  text-transform: capitalize;
+}
+.zone-impact span {
+  margin-top: 3px;
+  color: var(--text-muted, #708079);
+  font-size: 10px;
+}
+.team-recommendations {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+}
+.team-recommendation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #cfe1da;
+  border-radius: 9px;
+  background: #f4f9f7;
+}
+.team-recommendation small {
+  display: block;
+  margin-top: 4px;
+}
+.team-recommendation p {
+  margin: 5px 0 0;
+  font-size: 10px;
 }
 .response-layout {
   display: grid;

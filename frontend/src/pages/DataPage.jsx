@@ -19,6 +19,9 @@ import {
   Badge,
 } from "../components/Shared";
 import { api, downloadJSON } from "../services/api";
+
+// External references are shown separately from project datasets so visitors
+// can distinguish authoritative sources, model providers, and mapped surveys.
 const sources = [
   {
     name: "Regional terrain elevation",
@@ -70,45 +73,60 @@ const sources = [
     text: "Street tiles are attributed to OpenStreetMap. Project paths and landmarks come from the original KMLs. Mapped geometry is not evidence of safe access.",
   },
 ];
-const human = (s) => s.replaceAll("_", " ");
+const humanize = (value) => value.replaceAll("_", " ");
+
+/** Inspect prepared datasets, their provenance, and their sample records. */
 export default function DataPage() {
   const { manifest, siteId, site, notify } = useWater();
-  const [tab, setTab] = useState("catalog"),
-    [query, setQuery] = useState(""),
-    [selected, setSelected] = useState(null),
-    [catalog, setCatalog] = useState({}),
-    [records, setRecords] = useState(null),
-    [loading, setLoading] = useState(false),
-    [offset, setOffset] = useState(0),
-    [recordError, setRecordError] = useState("");
+  const [tab, setTab] = useState("catalog");
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [catalog, setCatalog] = useState({});
+  const [records, setRecords] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [recordError, setRecordError] = useState("");
+
+  // Catalog metadata requires administrator access, so it is loaded through the API.
   useEffect(() => {
     api("/data/catalog")
       .then(setCatalog)
       .catch(() => {});
   }, []);
-  const files = manifest.files.filter((f) => f.site === siteId),
-    filtered = files.filter((f) =>
-      `${f.file} ${f.provenance}`.toLowerCase().includes(query.toLowerCase()),
-    ),
-    issues = files.filter((f) => f.issues.length);
-  const total = files.reduce((s, f) => s + f.records, 0);
-  function inspect(f) {
-    setSelected(f);
+
+  // Search and issue counts are derived locally from the small catalog.
+  const files = manifest.files.filter((file) => file.site === siteId);
+  const filtered = files.filter((file) =>
+    `${file.file} ${file.provenance}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+  const issues = files.filter((file) => file.issues.length);
+  const total = files.reduce(
+    (recordCount, file) => recordCount + file.records,
+    0,
+  );
+
+  /** Open one dataset and clear state left by the previous selection. */
+  function inspect(file) {
+    setSelected(file);
     setRecords(null);
     setOffset(0);
     setRecordError("");
   }
+
+  /** Load one bounded record page for the currently selected dataset. */
   async function loadRecords(nextOffset = 0) {
     setLoading(true);
     setRecordError("");
     try {
-      const d = await api(
+      const response = await api(
         `/datasets/${encodeURIComponent(selected.file)}?offset=${nextOffset}&limit=10`,
       );
-      setRecords(d);
+      setRecords(response);
       setOffset(nextOffset);
-    } catch (e) {
-      setRecordError(e.message);
+    } catch (error) {
+      setRecordError(error.message);
     } finally {
       setLoading(false);
     }
@@ -227,7 +245,7 @@ export default function DataPage() {
                               : "teal"
                         }
                       >
-                        {human(f.provenance)}
+                        {humanize(f.provenance)}
                       </Badge>
                     </td>
                     <td>
@@ -346,7 +364,7 @@ export default function DataPage() {
           <div className="source-facts">
             <div>
               <strong>{selected.records.toLocaleString()} records</strong>
-              <small>{human(selected.provenance)}</small>
+              <small>{humanize(selected.provenance)}</small>
             </div>
             <div>
               <strong>{(selected.bytes / 1024).toFixed(1)} KB</strong>
